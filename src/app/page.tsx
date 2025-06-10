@@ -1,81 +1,126 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { invoiceFormSchema, type InvoiceFormValues } from '@/lib/schemas';
+import { invoiceFormSchema, type InvoiceFormValues, lineItemSchema } from '@/lib/schemas';
 import Header from '@/components/header';
 import InvoiceForm from '@/components/invoice-form';
 import InvoicePreview from '@/components/invoice-preview';
 import { handleSmartFillServerAction } from '@/lib/actions';
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from '@/contexts/auth-context';
+import { db } from '@/lib/firebase';
+import { doc, setDoc, getDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
-const defaultValues: InvoiceFormValues = {
+const generateInvoiceNumber = (): string => {
+  const datePart = new Date().toISOString().slice(2, 10).replace(/-/g, ''); // YYMMDDHH
+  const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `INV-${datePart}-${randomPart}`;
+};
+
+const getFreshInvoice = (): InvoiceFormValues => ({
+  id: uuidv4(),
+  invoiceNumber: generateInvoiceNumber(),
   businessName: '',
   businessAddress: '',
   clientName: '',
   clientAddress: '',
   invoiceDate: new Date(),
-  lineItems: [{ id: uuidv4(), description: '', quantity: 1, price: 0 }],
+  lineItems: [{ ...lineItemSchema.parse({ id: uuidv4() }), description: '', quantity: 1, price: 0 }],
   invoiceText: '',
-};
+  userId: undefined,
+  createdAt: undefined,
+  updatedAt: undefined,
+});
 
 export default function QuickBillPage() {
+  const { user, loading: authLoading } = useAuth();
   const methods = useForm<InvoiceFormValues>({
     resolver: zodResolver(invoiceFormSchema),
-    defaultValues,
-    mode: 'onChange',
+    defaultValues: getFreshInvoice(),
+    mode: 'onChange', // Or 'onBlur'
   });
 
-  const { watch, reset, getValues, setValue } = methods;
+  const { watch, reset, getValues, setValue, formState: {isDirty, isValid} } = methods;
   const formData = watch();
   const { toast } = useToast();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [isClient, setIsClient] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSmartFilling, setIsSmartFilling] = useState(false);
+  const [isLoadingInvoice, setIsLoadingInvoice] = useState(false);
+
+
+  const resetFormToFreshInvoice = useCallback(() => {
+    const freshInvoice = getFreshInvoice();
+    if (user) {
+      freshInvoice.userId = user.uid;
+    }
+    reset(freshInvoice);
+  }, [reset, user]);
+
 
   useEffect(() => {
     setIsClient(true);
-    // Load saved template from localStorage
-    const savedTemplate = localStorage.getItem('quickbill-template');
-    if (savedTemplate) {
-      try {
-        const parsedTemplate = JSON.parse(savedTemplate) as InvoiceFormValues;
-        // Convert date strings back to Date objects
-        if (parsedTemplate.invoiceDate) {
-          parsedTemplate.invoiceDate = new Date(parsedTemplate.invoiceDate);
+    const invoiceIdToLoad = searchParams.get('loadInvoiceId');
+    if (invoiceIdToLoad && user) {
+      setIsLoadingInvoice(true);
+      const fetchInvoice = async () => {
+        try {
+          const invoiceDocRef = doc(db, `users/${user.uid}/invoices`, invoiceIdToLoad);
+          const invoiceSnap = await getDoc(invoiceDocRef);
+          if (invoiceSnap.exists()) {
+            const invoiceData = invoiceSnap.data() as InvoiceFormValues;
+            // Convert Firestore Timestamps to JS Dates
+            if (invoiceData.invoiceDate && invoiceData.invoiceDate instanceof Timestamp) {
+              invoiceData.invoiceDate = invoiceData.invoiceDate.toDate();
+            }
+             if (invoiceData.createdAt && invoiceData.createdAt instanceof Timestamp) {
+              invoiceData.createdAt = invoiceData.createdAt.toDate();
+            }
+            if (invoiceData.updatedAt && invoiceData.updatedAt instanceof Timestamp) {
+              invoiceData.updatedAt = invoiceData.updatedAt.toDate();
+            }
+            // Ensure line items have IDs
+             invoiceData.lineItems = invoiceData.lineItems.map(item => ({...item, id: item.id || uuidv4()}));
+
+            reset(invoiceData);
+            toast({ title: "Invoice Loaded", description: `Invoice ${invoiceData.invoiceNumber} loaded.` });
+          } else {
+            toast({ variant: "destructive", title: "Not Found", description: "Could not find the invoice to load." });
+            resetFormToFreshInvoice();
+          }
+        } catch (error) {
+          console.error("Error loading invoice:", error);
+          toast({ variant: "destructive", title: "Load Error", description: "Failed to load the invoice." });
+          resetFormToFreshInvoice();
+        } finally {
+          setIsLoadingInvoice(false);
+          // Clear the query param from URL without full page reload
+          router.replace('/', { scroll: false }); 
         }
-        // Ensure line items have IDs if they are missing (e.g. from older saves)
-        parsedTemplate.lineItems = parsedTemplate.lineItems.map(item => ({...item, id: item.id || uuidv4()}));
-        
-        // Validate before resetting (optional, but good practice)
-        const validation = invoiceFormSchema.safeParse(parsedTemplate);
-        if (validation.success) {
-          reset(validation.data);
-          toast({
-            title: "Template Loaded",
-            description: "Previously saved invoice data has been loaded.",
-          });
-        } else {
-          console.warn("Saved template is invalid, loading default values.", validation.error.flatten());
-          localStorage.removeItem('quickbill-template'); // Remove invalid data
-          reset(defaultValues); // Reset to fresh defaults
-        }
-      } catch (error) {
-        console.error("Failed to load or parse saved template:", error);
-        localStorage.removeItem('quickbill-template'); // Clear corrupted data
-        reset(defaultValues); // Reset to fresh defaults
-      }
+      };
+      fetchInvoice();
+    } else if (!invoiceIdToLoad) {
+       resetFormToFreshInvoice();
     }
-  }, [reset, toast]);
+  }, [user, searchParams, reset, toast, router, resetFormToFreshInvoice]);
 
 
   const handleSmartFill = async () => {
     const currentValues = getValues();
+    setIsSmartFilling(true);
     toast({ title: "Smart Fill In Progress...", description: "AI is analyzing your input." });
     try {
       const suggestions = await handleSmartFillServerAction(currentValues);
       if (Object.keys(suggestions).length > 0) {
-        // Selectively update fields. `reset` might overwrite user's deliberate choices.
         Object.entries(suggestions).forEach(([key, value]) => {
           if (value !== undefined && key in currentValues) {
              setValue(key as keyof InvoiceFormValues, value, { shouldValidate: true, shouldDirty: true });
@@ -83,49 +128,88 @@ export default function QuickBillPage() {
         });
         toast({ title: "Smart Fill Complete!", description: "Fields updated with AI suggestions." });
       } else {
-        toast({ title: "Smart Fill", description: "No specific suggestions found, or an error occurred." });
+        toast({ title: "Smart Fill", description: "No specific suggestions found." });
       }
     } catch (error) {
       console.error("Smart Fill client-side error:", error);
       toast({ variant: "destructive", title: "Smart Fill Error", description: "Could not apply suggestions." });
+    } finally {
+      setIsSmartFilling(false);
     }
   };
 
   const handleDownloadPDF = () => {
     if (isClient) {
       toast({ title: "Preparing PDF...", description: "Your browser's print dialog will appear." });
-      setTimeout(() => window.print(), 500); // Delay to allow toast to show
+      setTimeout(() => window.print(), 500);
     }
   };
 
-  const handleSaveTemplate = () => {
-     if (isClient) {
-      const currentFormValues = getValues();
-      // Validate before saving
-      const validation = invoiceFormSchema.safeParse(currentFormValues);
-      if (validation.success) {
-        localStorage.setItem('quickbill-template', JSON.stringify(validation.data));
-        toast({
-          title: "Template Saved",
-          description: "Invoice data saved locally in your browser.",
-        });
-      } else {
-         toast({
-          variant: "destructive",
-          title: "Save Error",
-          description: "Could not save, form data is invalid. Please check errors.",
-        });
-        console.error("Form validation failed on save:", validation.error.flatten());
+  const handleSaveInvoice = async () => {
+    if (!user) {
+      toast({ variant: "destructive", title: "Not Logged In", description: "Please log in to save invoices." });
+      return;
+    }
+    if (!isValid) {
+       toast({ variant: "destructive", title: "Invalid Form", description: "Please correct the errors before saving." });
+       return;
+    }
+
+    setIsSaving(true);
+    const currentFormValues = getValues();
+    
+    const invoiceDataToSave: InvoiceFormValues = {
+      ...currentFormValues,
+      userId: user.uid,
+      updatedAt: serverTimestamp() as any, // Firestore will convert this
+      // If it's a new invoice (based on whether createdAt is already set or not)
+      ...(currentFormValues.createdAt ? {} : { createdAt: serverTimestamp() as any }),
+    };
+     // Ensure invoice ID is present
+    if (!invoiceDataToSave.id) {
+      invoiceDataToSave.id = uuidv4();
+    }
+    // Ensure invoice number is present
+    if (!invoiceDataToSave.invoiceNumber) {
+      invoiceDataToSave.invoiceNumber = generateInvoiceNumber();
+      setValue('invoiceNumber', invoiceDataToSave.invoiceNumber); // Update form state too
+    }
+
+
+    try {
+      const invoiceDocRef = doc(db, `users/${user.uid}/invoices`, invoiceDataToSave.id);
+      await setDoc(invoiceDocRef, invoiceDataToSave, { merge: true });
+      
+      // After successful save, update the form state with server timestamps (if needed, or just re-fetch/rely on local)
+      // For simplicity, we can assume the local `updatedAt` is now the server one.
+      // Or, to get actual server timestamp, you might re-fetch, but for now, this is okay.
+      setValue('updatedAt', new Date(), {shouldDirty: false}); 
+      if (!getValues('createdAt')) {
+         setValue('createdAt', new Date(), {shouldDirty: false});
       }
+      // Reset dirty state as it's now saved
+      methods.reset(getValues(), { keepValues: true, keepDirty: false, keepDefaultValues: false });
+
+
+      toast({
+        title: "Invoice Saved",
+        description: `Invoice ${invoiceDataToSave.invoiceNumber} has been saved.`,
+      });
+    } catch (error) {
+      console.error("Error saving invoice:", error);
+      toast({ variant: "destructive", title: "Save Error", description: "Could not save the invoice." });
+    } finally {
+      setIsSaving(false);
     }
   };
   
-  if (!isClient) {
-    // Render a loading state or null until client-side hydration to avoid mismatches with localStorage
+  if (authLoading || !isClient || isLoadingInvoice) {
     return (
-      <div className="min-h-screen bg-background text-foreground p-4 sm:p-8 font-body flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-background text-foreground p-4 sm:p-8 font-body flex flex-col">
         <Header />
-        <p className="text-lg text-muted-foreground mt-8">Loading QuickBill...</p>
+        <div className="flex-grow flex items-center justify-center">
+           <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
       </div>
     );
   }
@@ -135,14 +219,16 @@ export default function QuickBillPage() {
       <div className="min-h-screen bg-background text-foreground p-4 sm:p-8 font-body">
         <Header />
         <main className="max-w-7xl mx-auto mt-4 sm:mt-8">
-          {/* Form submission is handled by buttons, so <form> tag is for semantics and accessibility */}
           <form onSubmit={(e) => e.preventDefault()}>
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
               <div className="lg:col-span-3">
                 <InvoiceForm
                   onSmartFill={handleSmartFill}
                   onDownloadPDF={handleDownloadPDF}
-                  onSaveTemplate={handleSaveTemplate}
+                  onSaveInvoice={handleSaveInvoice}
+                  onNewInvoice={resetFormToFreshInvoice}
+                  isSaving={isSaving}
+                  isSmartFilling={isSmartFilling}
                 />
               </div>
               <div className="lg:col-span-2">

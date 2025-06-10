@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { FC } from 'react';
@@ -10,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarDays, PlusCircle, Save, Sparkles, Trash2, Download } from 'lucide-react';
+import { CalendarDays, PlusCircle, Save, Sparkles, Trash2, Download, FilePlus2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
@@ -18,11 +19,21 @@ import { v4 as uuidv4 } from 'uuid';
 interface InvoiceFormProps {
   onSmartFill: () => Promise<void>;
   onDownloadPDF: () => void;
-  onSaveTemplate: () => void;
+  onSaveInvoice: () => Promise<void>;
+  onNewInvoice: () => void;
+  isSaving: boolean;
+  isSmartFilling: boolean;
 }
 
-const InvoiceForm: FC<InvoiceFormProps> = ({ onSmartFill, onDownloadPDF, onSaveTemplate }) => {
-  const { control, register, formState: { errors } } = useFormContext<InvoiceFormValues>();
+const InvoiceForm: FC<InvoiceFormProps> = ({ 
+  onSmartFill, 
+  onDownloadPDF, 
+  onSaveInvoice, 
+  onNewInvoice,
+  isSaving,
+  isSmartFilling
+}) => {
+  const { control, register, formState: { errors, isDirty, isValid } } = useFormContext<InvoiceFormValues>();
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -36,7 +47,12 @@ const InvoiceForm: FC<InvoiceFormProps> = ({ onSmartFill, onDownloadPDF, onSaveT
   return (
     <Card className="shadow-lg">
       <CardHeader>
-        <CardTitle className="font-headline text-2xl">Create New Invoice</CardTitle>
+        <div className="flex justify-between items-center">
+          <CardTitle className="font-headline text-2xl">Create / Edit Invoice</CardTitle>
+           <Button type="button" variant="outline" size="sm" onClick={onNewInvoice}>
+              <FilePlus2 className="mr-2 h-4 w-4" /> New Invoice
+            </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Business Details */}
@@ -69,38 +85,45 @@ const InvoiceForm: FC<InvoiceFormProps> = ({ onSmartFill, onDownloadPDF, onSaveT
           </div>
         </section>
         
-        {/* Invoice Date */}
-         <section className="space-y-2 p-4 border rounded-md">
-           <h3 className="text-lg font-semibold text-primary">Invoice Date</h3>
-            <Controller
-                name="invoiceDate"
-                control={control}
-                render={({ field }) => (
-                <Popover>
-                    <PopoverTrigger asChild>
-                    <Button
-                        variant="outline"
-                        className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !field.value && "text-muted-foreground"
-                        )}
-                    >
-                        <CalendarDays className="mr-2 h-4 w-4" />
-                        {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                    <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        initialFocus
-                    />
-                    </PopoverContent>
-                </Popover>
-                )}
-            />
-            {errors.invoiceDate && <p className="text-sm text-destructive mt-1">{errors.invoiceDate.message}</p>}
+        {/* Invoice Date & Number */}
+         <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 border rounded-md">
+           <div>
+             <Label htmlFor="invoiceDate" className="text-lg font-semibold text-primary block mb-2">Invoice Date</Label>
+              <Controller
+                  name="invoiceDate"
+                  control={control}
+                  render={({ field }) => (
+                  <Popover>
+                      <PopoverTrigger asChild>
+                      <Button
+                          variant="outline"
+                          className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !field.value && "text-muted-foreground"
+                          )}
+                      >
+                          <CalendarDays className="mr-2 h-4 w-4" />
+                          {field.value ? format(new Date(field.value), "PPP") : <span>Pick a date</span>}
+                      </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                      <Calendar
+                          mode="single"
+                          selected={field.value ? new Date(field.value) : undefined}
+                          onSelect={field.onChange}
+                          initialFocus
+                      />
+                      </PopoverContent>
+                  </Popover>
+                  )}
+              />
+              {errors.invoiceDate && <p className="text-sm text-destructive mt-1">{errors.invoiceDate.message}</p>}
+           </div>
+            <div>
+              <Label htmlFor="invoiceNumber" className="text-lg font-semibold text-primary block mb-2">Invoice Number</Label>
+              <Input id="invoiceNumber" {...register('invoiceNumber')} placeholder="e.g. INV-001" />
+              {errors.invoiceNumber && <p className="text-sm text-destructive mt-1">{errors.invoiceNumber.message}</p>}
+            </div>
         </section>
 
         {/* Line Items */}
@@ -157,6 +180,7 @@ const InvoiceForm: FC<InvoiceFormProps> = ({ onSmartFill, onDownloadPDF, onSaveT
           {errors.lineItems && typeof errors.lineItems.message === 'string' && (
             <p className="text-sm text-destructive mt-1">{errors.lineItems.message}</p>
           )}
+           {errors.lineItems?.root && <p className="text-sm text-destructive mt-1">{errors.lineItems.root.message}</p>}
         </section>
 
         {/* Smart Fill Text Area */}
@@ -173,13 +197,13 @@ const InvoiceForm: FC<InvoiceFormProps> = ({ onSmartFill, onDownloadPDF, onSaveT
         </section>
       </CardContent>
       <CardFooter className="flex flex-col sm:flex-row justify-end gap-3 p-6 border-t">
-        <Button type="button" variant="outline" onClick={onSmartFill} className="w-full sm:w-auto">
-          <Sparkles className="mr-2 h-4 w-4" /> Smart Fill
+        <Button type="button" variant="outline" onClick={onSmartFill} className="w-full sm:w-auto" disabled={isSmartFilling || isSaving}>
+          <Sparkles className="mr-2 h-4 w-4" /> {isSmartFilling ? 'Filling...' : 'Smart Fill'}
         </Button>
-        <Button type="button" onClick={onSaveTemplate} className="w-full sm:w-auto bg-accent hover:bg-accent/90">
-          <Save className="mr-2 h-4 w-4" /> Save Template
+        <Button type="button" onClick={onSaveInvoice} className="w-full sm:w-auto bg-accent hover:bg-accent/90" disabled={isSaving || !isDirty || !isValid}>
+          <Save className="mr-2 h-4 w-4" /> {isSaving ? 'Saving...' : 'Save Invoice'}
         </Button>
-        <Button type="button" onClick={onDownloadPDF} className="w-full sm:w-auto">
+        <Button type="button" onClick={onDownloadPDF} className="w-full sm:w-auto" disabled={isSaving}>
           <Download className="mr-2 h-4 w-4" /> Download PDF
         </Button>
       </CardFooter>

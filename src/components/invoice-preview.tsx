@@ -1,10 +1,12 @@
+
 'use client';
 
 import type { FC } from 'react';
-import type { InvoiceFormValues, LineItem } from '@/types/invoice';
+import type { InvoiceFormValues, LineItem } from '@/types/invoice'; // Ensure LineItem is imported
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
+import { Timestamp } from 'firebase/firestore';
 
 interface InvoicePreviewProps {
   formData: InvoiceFormValues;
@@ -17,29 +19,30 @@ const InvoicePreview: FC<InvoicePreviewProps> = ({ formData }) => {
     clientName,
     clientAddress,
     invoiceDate,
+    invoiceNumber,
     lineItems,
   } = formData;
 
-  const calculateSubtotal = (items: LineItem[]): number => {
-    return items.reduce((sum, item) => sum + item.quantity * item.price, 0);
+  const calculateSubtotal = (items: LineItem[] = []): number => { // Default to empty array
+    return items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.price) || 0), 0);
   };
 
   const subtotal = calculateSubtotal(lineItems);
-  // For simplicity, not adding tax or discounts. Total is same as subtotal.
   const totalAmount = subtotal;
 
-  const formatDate = (date: Date | string | undefined): string => {
+  const formatDate = (date: Date | string | Timestamp | undefined): string => {
     if (!date) return 'N/A';
     try {
-      return format(new Date(date), 'PPP');
+      const d = date instanceof Timestamp ? date.toDate() : new Date(date);
+      return format(d, 'PPP');
     } catch {
       return 'Invalid Date';
     }
   };
   
   const formatCurrency = (amount: number | undefined): string => {
-    if (amount === undefined) return 'N/A';
-    return amount.toLocaleString(undefined, { style: 'currency', currency: 'USD' }); // Default to USD, can be made dynamic
+    if (amount === undefined || isNaN(amount)) return formatCurrency(0); // Default to $0.00 if NaN
+    return amount.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
   };
 
 
@@ -50,9 +53,11 @@ const InvoicePreview: FC<InvoicePreviewProps> = ({ formData }) => {
           <div>
             <CardTitle className="text-3xl font-headline text-primary">INVOICE</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Invoice Date: {formatDate(invoiceDate)}
+              Invoice #: {invoiceNumber || 'N/A'}
             </p>
-            {/* Invoice Number can be added here later */}
+            <p className="text-sm text-muted-foreground">
+              Date: {formatDate(invoiceDate)}
+            </p>
           </div>
           <div className="text-right">
             <h2 className="text-xl font-semibold text-foreground">{businessName || 'Your Business Name'}</h2>
@@ -81,11 +86,11 @@ const InvoicePreview: FC<InvoicePreviewProps> = ({ formData }) => {
                 </thead>
                 <tbody className="divide-y divide-border">
                 {(lineItems && lineItems.length > 0) ? lineItems.map((item) => (
-                    <tr key={item.id}>
+                    <tr key={item.id || Math.random().toString()}> {/* Fallback key if id is missing */}
                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-foreground sm:pl-6">{item.description || 'Item Description'}</td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-muted-foreground">{item.quantity || 0}</td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-muted-foreground">{formatCurrency(item.price)}</td>
-                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium text-foreground sm:pr-6">{formatCurrency(item.quantity * item.price)}</td>
+                    <td className="whitespace-nowrap px-3 py-4 text-sm text-muted-foreground">{formatCurrency(Number(item.price) || 0)}</td>
+                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium text-foreground sm:pr-6">{formatCurrency((Number(item.quantity) || 0) * (Number(item.price) || 0))}</td>
                     </tr>
                 )) : (
                     <tr>
@@ -105,7 +110,6 @@ const InvoicePreview: FC<InvoicePreviewProps> = ({ formData }) => {
                 <dt className="text-sm text-muted-foreground">Subtotal</dt>
                 <dd className="text-sm font-medium text-foreground">{formatCurrency(subtotal)}</dd>
               </div>
-              {/* Tax, Discount can be added here */}
               <div className="flex justify-between border-t border-border pt-2">
                 <dt className="text-base font-semibold text-foreground">Total</dt>
                 <dd className="text-base font-semibold text-primary">{formatCurrency(totalAmount)}</dd>

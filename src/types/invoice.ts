@@ -1,3 +1,4 @@
+
 export interface LineItem {
   id: string;
   description: string;
@@ -7,6 +8,8 @@ export interface LineItem {
 
 // This type is derived from the form schema, useful for props
 export interface InvoiceFormValues {
+  id: string; // UUID for the invoice
+  invoiceNumber: string;
   businessName: string;
   businessAddress?: string;
   clientName: string;
@@ -14,4 +17,7 @@ export interface InvoiceFormValues {
   invoiceDate: Date;
   lineItems: LineItem[];
   invoiceText?: string; // For smart fill
+  userId?: string; // For Firestore
+  createdAt?: Date; // For Firestore
+  updatedAt?: Date; // For Firestore
 }
