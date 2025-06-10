@@ -1,6 +1,6 @@
 
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getAuth, type Auth } from 'firebase/auth';
+import { getAuth, type Auth, GoogleAuthProvider } from 'firebase/auth'; // Added GoogleAuthProvider
 import { getFirestore, type Firestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -22,8 +22,9 @@ if (!getApps().length) {
 
 const auth: Auth = getAuth(app);
 const db: Firestore = getFirestore(app);
+const googleProvider = new GoogleAuthProvider(); // Create a GoogleAuthProvider instance
 
-export { app, auth, db };
+export { app, auth, db, googleProvider }; // Export googleProvider
 
 // It's highly recommended to set up Firestore security rules.
 // For example, to ensure users can only access their own invoices:

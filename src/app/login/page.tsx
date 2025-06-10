@@ -4,20 +4,24 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { auth, googleProvider, db } from '@/lib/firebase';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { FileText } from 'lucide-react';
+import { FileText, Eye, EyeOff, ChromeIcon } from 'lucide-react'; // Added Eye, EyeOff, ChromeIcon (as a placeholder for Google)
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -34,6 +38,34 @@ export default function LoginPage() {
       toast({ variant: 'destructive', title: 'Login Failed', description: err.message });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    setError(null);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (!userDocSnap.exists()) {
+        await setDoc(userDocRef, {
+          email: user.email,
+          displayName: user.displayName || user.email?.split('@')[0],
+          createdAt: serverTimestamp(),
+          photoURL: user.photoURL,
+        });
+      }
+      toast({ title: 'Login Successful', description: `Welcome, ${user.displayName || user.email}!` });
+      router.push('/');
+    } catch (err: any) {
+      setError(err.message);
+      toast({ variant: 'destructive', title: 'Google Sign-In Failed', description: err.message });
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -66,21 +98,43 @@ export default function LoginPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                className="text-base"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  className="text-base pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </Button>
+              </div>
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full text-base py-3" disabled={loading}>
+            <Button type="submit" className="w-full text-base py-3" disabled={loading || googleLoading}>
               {loading ? 'Logging in...' : 'Login'}
             </Button>
           </form>
+          <div className="my-6 flex items-center">
+            <Separator className="flex-grow" />
+            <span className="mx-4 text-xs text-muted-foreground">OR CONTINUE WITH</span>
+            <Separator className="flex-grow" />
+          </div>
+          <Button variant="outline" className="w-full text-base py-3" onClick={handleGoogleSignIn} disabled={loading || googleLoading}>
+            {/* Using ChromeIcon as a placeholder, ideally you'd use an actual Google SVG icon */}
+            <ChromeIcon className="mr-2 h-5 w-5" /> 
+            {googleLoading ? 'Signing in with Google...' : 'Sign in with Google'}
+          </Button>
         </CardContent>
         <CardFooter className="text-center text-sm">
           <p>
