@@ -38,6 +38,16 @@ service cloud.firestore {
     match /users/{userId}/invoices/{invoiceId} {
       allow read, write, delete: if request.auth != null && request.auth.uid == userId;
     }
+    // Rules for the public 'invoices' collection
+    match /invoices/{publicInvoiceId} {
+      // Allow read by anyone for public preview
+      allow read: if true; 
+      // Allow write only if the user is authenticated and the invoice's userId matches,
+      // OR if there's no userId (e.g., anonymous invoice creation, adjust as needed)
+      allow write: if request.auth != null && 
+                      (request.resource.data.userId == request.auth.uid || request.resource.data.userId == null);
+    }
   }
 }
 */
+
