@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { Eye, Trash2, PlusCircle, Download, Loader2 } from 'lucide-react';
+import { Eye, Trash2, PlusCircle, Loader2, ListChecks } from 'lucide-react';
 
 interface DisplayInvoice extends Omit<InvoiceFormValues, 'invoiceDate' | 'createdAt' | 'updatedAt'> {
   invoiceDate: string; // Formatted string
@@ -23,21 +23,22 @@ interface DisplayInvoice extends Omit<InvoiceFormValues, 'invoiceDate' | 'create
   totalAmount: number;
 }
 
+// Helper functions moved outside the component
+const calculateTotal = (items: InvoiceFormValues['lineItems']): number => {
+  return items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.price)), 0);
+};
+
+const formatCurrency = (amount: number | undefined): string => {
+  if (amount === undefined) return 'N/A';
+  return amount.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
+};
+
 export default function MyInvoicesPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [invoices, setInvoices] = useState<DisplayInvoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-
-  const calculateTotal = (items: InvoiceFormValues['lineItems']): number => {
-    return items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.price)), 0);
-  };
-  
-  const formatCurrency = (amount: number | undefined): string => {
-    if (amount === undefined) return 'N/A';
-    return amount.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
-  };
 
   const fetchInvoices = useCallback(async () => {
     if (!user) return;

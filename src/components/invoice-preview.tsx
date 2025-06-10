@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { FC } from 'react';
+import React, { type FC } from 'react'; // Imported React
 import type { InvoiceFormValues, LineItem } from '@/types/invoice'; // Ensure LineItem is imported
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -12,7 +12,7 @@ interface InvoicePreviewProps {
   formData: InvoiceFormValues;
 }
 
-const InvoicePreview: FC<InvoicePreviewProps> = ({ formData }) => {
+const InvoicePreviewComponent: FC<InvoicePreviewProps> = ({ formData }) => {
   const {
     businessName,
     businessAddress,
@@ -124,5 +124,8 @@ const InvoicePreview: FC<InvoicePreviewProps> = ({ formData }) => {
     </Card>
   );
 };
+
+const InvoicePreview = React.memo(InvoicePreviewComponent);
+InvoicePreview.displayName = 'InvoicePreview'; // Optional: for better debugging
 
 export default InvoicePreview;
