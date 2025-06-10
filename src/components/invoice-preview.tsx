@@ -1,12 +1,13 @@
 
 'use client';
 
-import React, { type FC } from 'react'; // Imported React
-import type { InvoiceFormValues, LineItem } from '@/types/invoice'; // Ensure LineItem is imported
+import React, { type FC } from 'react';
+import type { InvoiceFormValues, LineItem } from '@/types/invoice';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
+import { getScenarioConfig, getScenarioTag } from '@/config/invoice-scenarios';
 
 interface InvoicePreviewProps {
   formData: InvoiceFormValues;
@@ -14,6 +15,7 @@ interface InvoicePreviewProps {
 
 const InvoicePreviewComponent: FC<InvoicePreviewProps> = ({ formData }) => {
   const {
+    invoiceType,
     businessName,
     businessAddress,
     clientName,
@@ -21,9 +23,13 @@ const InvoicePreviewComponent: FC<InvoicePreviewProps> = ({ formData }) => {
     invoiceDate,
     invoiceNumber,
     lineItems,
+    rentPeriod,
   } = formData;
 
-  const calculateSubtotal = (items: LineItem[] = []): number => { // Default to empty array
+  const scenarioConfig = getScenarioConfig(invoiceType);
+  const scenarioTag = getScenarioTag(invoiceType);
+
+  const calculateSubtotal = (items: LineItem[] = []): number => {
     return items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.price) || 0), 0);
   };
 
@@ -41,10 +47,14 @@ const InvoicePreviewComponent: FC<InvoicePreviewProps> = ({ formData }) => {
   };
   
   const formatCurrency = (amount: number | undefined): string => {
-    if (amount === undefined || isNaN(amount)) return formatCurrency(0); // Default to $0.00 if NaN
+    if (amount === undefined || isNaN(amount)) return formatCurrency(0);
     return amount.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
   };
 
+  const displayBusinessName = businessName || (scenarioConfig?.businessNameLabel || 'Your Business Name');
+  const displayBusinessAddress = businessAddress || (scenarioConfig?.businessAddressLabel || 'Your Business Address');
+  const displayClientName = clientName || (scenarioConfig?.clientNameLabel || 'Client Name');
+  const displayClientAddress = clientAddress || (scenarioConfig?.clientAddressLabel || 'Client Address');
 
   return (
     <Card className="shadow-lg h-fit" id="invoice-preview-area">
@@ -52,24 +62,34 @@ const InvoicePreviewComponent: FC<InvoicePreviewProps> = ({ formData }) => {
         <div className="flex justify-between items-start">
           <div>
             <CardTitle className="text-3xl font-headline text-primary">INVOICE</CardTitle>
+            {scenarioTag && <p className="text-sm font-semibold text-accent-foreground">{scenarioTag}</p>}
             <p className="text-sm text-muted-foreground">
               Invoice #: {invoiceNumber || 'N/A'}
             </p>
             <p className="text-sm text-muted-foreground">
               Date: {formatDate(invoiceDate)}
             </p>
+            {invoiceType === 'rent' && rentPeriod && (
+              <p className="text-sm text-muted-foreground">
+                Rent Period: {rentPeriod}
+              </p>
+            )}
           </div>
-          <div className="text-right">
-            <h2 className="text-xl font-semibold text-foreground">{businessName || 'Your Business Name'}</h2>
-            <p className="text-sm text-muted-foreground whitespace-pre-line">{businessAddress || 'Your Business Address'}</p>
-          </div>
+          {scenarioConfig?.showBusinessFields && (
+            <div className="text-right">
+              <h2 className="text-xl font-semibold text-foreground">{displayBusinessName}</h2>
+              <p className="text-sm text-muted-foreground whitespace-pre-line">{displayBusinessAddress}</p>
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent className="p-6">
         <div className="mb-6">
-          <h3 className="text-lg font-semibold text-foreground mb-1">Bill To:</h3>
-          <p className="font-medium text-foreground">{clientName || 'Client Name'}</p>
-          <p className="text-sm text-muted-foreground whitespace-pre-line">{clientAddress || 'Client Address'}</p>
+          <h3 className="text-lg font-semibold text-foreground mb-1">
+            {scenarioConfig?.clientNameLabel ? scenarioConfig.clientNameLabel + ':' : 'Bill To:'}
+          </h3>
+          <p className="font-medium text-foreground">{displayClientName}</p>
+          <p className="text-sm text-muted-foreground whitespace-pre-line">{displayClientAddress}</p>
         </div>
 
         <Separator className="my-6" />
@@ -80,43 +100,54 @@ const InvoicePreviewComponent: FC<InvoicePreviewProps> = ({ formData }) => {
                 <tr>
                     <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-foreground sm:pl-6">Item</th>
                     <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-foreground">Qty</th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-foreground">Price</th>
-                    <th scope="col" className="relative py-3.5 pl-3 pr-4 text-right text-sm font-semibold text-foreground sm:pr-6">Amount</th>
+                    {invoiceType !== 'delivery_receipt' && (
+                      <>
+                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-foreground">Price</th>
+                        <th scope="col" className="relative py-3.5 pl-3 pr-4 text-right text-sm font-semibold text-foreground sm:pr-6">Amount</th>
+                      </>
+                    )}
                 </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                 {(lineItems && lineItems.length > 0) ? lineItems.map((item) => (
-                    <tr key={item.id || Math.random().toString()}> {/* Fallback key if id is missing */}
+                    <tr key={item.id || Math.random().toString()}>
                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-foreground sm:pl-6">{item.description || 'Item Description'}</td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-muted-foreground">{item.quantity || 0}</td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-muted-foreground">{formatCurrency(Number(item.price) || 0)}</td>
-                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium text-foreground sm:pr-6">{formatCurrency((Number(item.quantity) || 0) * (Number(item.price) || 0))}</td>
+                    {invoiceType !== 'delivery_receipt' && (
+                      <>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-muted-foreground">{formatCurrency(Number(item.price) || 0)}</td>
+                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium text-foreground sm:pr-6">{formatCurrency((Number(item.quantity) || 0) * (Number(item.price) || 0))}</td>
+                      </>
+                    )}
                     </tr>
                 )) : (
                     <tr>
-                        <td colSpan={4} className="text-center py-4 text-muted-foreground">No items added yet.</td>
+                        <td colSpan={invoiceType !== 'delivery_receipt' ? 4 : 2} className="text-center py-4 text-muted-foreground">No items added yet.</td>
                     </tr>
                 )}
                 </tbody>
             </table>
         </div>
         
-        <Separator className="my-6" />
-
-        <div className="flex justify-end">
-          <div className="w-full max-w-xs">
-            <dl className="space-y-2">
-              <div className="flex justify-between">
-                <dt className="text-sm text-muted-foreground">Subtotal</dt>
-                <dd className="text-sm font-medium text-foreground">{formatCurrency(subtotal)}</dd>
+        {invoiceType !== 'delivery_receipt' && (
+          <>
+            <Separator className="my-6" />
+            <div className="flex justify-end">
+              <div className="w-full max-w-xs">
+                <dl className="space-y-2">
+                  <div className="flex justify-between">
+                    <dt className="text-sm text-muted-foreground">Subtotal</dt>
+                    <dd className="text-sm font-medium text-foreground">{formatCurrency(subtotal)}</dd>
+                  </div>
+                  <div className="flex justify-between border-t border-border pt-2">
+                    <dt className="text-base font-semibold text-foreground">Total</dt>
+                    <dd className="text-base font-semibold text-primary">{formatCurrency(totalAmount)}</dd>
+                  </div>
+                </dl>
               </div>
-              <div className="flex justify-between border-t border-border pt-2">
-                <dt className="text-base font-semibold text-foreground">Total</dt>
-                <dd className="text-base font-semibold text-primary">{formatCurrency(totalAmount)}</dd>
-              </div>
-            </dl>
-          </div>
-        </div>
+            </div>
+          </>
+        )}
       </CardContent>
       <CardFooter className="p-6 border-t border-border bg-muted/30">
         <p className="text-xs text-muted-foreground">Thank you for your business!</p>
@@ -126,6 +157,6 @@ const InvoicePreviewComponent: FC<InvoicePreviewProps> = ({ formData }) => {
 };
 
 const InvoicePreview = React.memo(InvoicePreviewComponent);
-InvoicePreview.displayName = 'InvoicePreview'; // Optional: for better debugging
+InvoicePreview.displayName = 'InvoicePreview';
 
 export default InvoicePreview;

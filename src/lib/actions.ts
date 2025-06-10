@@ -1,23 +1,27 @@
+
 'use server';
 
 import { smartFill, type SmartFillInput, type SmartFillOutput } from '@/ai/flows/smart-fill';
-import { invoiceFormSchema, type InvoiceFormValues } from '@/lib/schemas';
+import type { InvoiceFormValues } from '@/lib/schemas';
+import type { InvoiceScenarioId } from '@/config/invoice-scenarios';
+
 
 export async function handleSmartFillServerAction(
-  currentFormData: Partial<InvoiceFormValues>
+  currentFormData: Partial<InvoiceFormValues> & { invoiceType: InvoiceScenarioId }
 ): Promise<Partial<InvoiceFormValues>> {
   try {
+    // Include invoiceType in the input for the AI, if desired for context
     const inputForAI: SmartFillInput = {
       businessName: currentFormData.businessName,
       businessAddress: currentFormData.businessAddress,
       clientName: currentFormData.clientName,
       clientAddress: currentFormData.clientAddress,
       invoiceText: currentFormData.invoiceText,
-      // For line items, AI might suggest one item or common details.
-      // Let's pass the first item's details if available, or keep it simple.
       itemDescription: currentFormData.lineItems?.[0]?.description,
       quantity: currentFormData.lineItems?.[0]?.quantity,
       price: currentFormData.lineItems?.[0]?.price,
+      // You could add invoiceType to SmartFillInput if the AI model should be aware of it
+      // For example: invoiceType: currentFormData.invoiceType
     };
 
     const aiOutput: SmartFillOutput = await smartFill(inputForAI);
@@ -28,40 +32,41 @@ export async function handleSmartFillServerAction(
     if (aiOutput.clientName) suggestedData.clientName = aiOutput.clientName;
     if (aiOutput.clientAddress) suggestedData.clientAddress = aiOutput.clientAddress;
     
-    // AI might suggest a single line item. We can decide how to merge this.
-    // For now, if AI provides item details, we can update the first line item or add a new one.
-    // This example updates fields but doesn't add/modify line items directly from AI to keep it simpler.
-    // Users can manually adjust line items based on AI's general output in invoiceText.
+    // If AI returns item details, you might want to update the first line item,
+    // especially if it's still the default/empty.
+    if (aiOutput.itemDescription || aiOutput.quantity !== undefined || aiOutput.price !== undefined) {
+      if (currentFormData.lineItems && currentFormData.lineItems.length > 0) {
+        const firstItem = currentFormData.lineItems[0];
+        const updatedItem = { ...firstItem };
+        let itemChanged = false;
 
-    // The AI output schema has itemDescription, quantity, price.
-    // If these are present, one strategy is to fill the first line item if it's empty,
-    // or add a new line item. For this version, we'll primarily focus on the main contact fields.
-    // The invoiceText from user input is the main source for AI to parse multiple items.
-
-    // Potentially update/add a line item:
-    // if (aiOutput.itemDescription && aiOutput.quantity && aiOutput.price) {
-    //   if (suggestedData.lineItems && suggestedData.lineItems.length > 0) {
-    //     suggestedData.lineItems[0] = {
-    //       ...suggestedData.lineItems[0],
-    //       description: aiOutput.itemDescription,
-    //       quantity: aiOutput.quantity,
-    //       price: aiOutput.price,
-    //     };
-    //   } else {
-    //     suggestedData.lineItems = [{
-    //       id: require('uuid').v4(), // Requires uuid on server or pass from client
-    //       description: aiOutput.itemDescription,
-    //       quantity: aiOutput.quantity,
-    //       price: aiOutput.price,
-    //     }];
-    //   }
+        if (aiOutput.itemDescription && (!firstItem.description || firstItem.description === "Service/Product Description" || firstItem.description.startsWith("Rent for "))) {
+          updatedItem.description = aiOutput.itemDescription;
+          itemChanged = true;
+        }
+        if (aiOutput.quantity !== undefined && (firstItem.quantity === 1 || firstItem.quantity === 0)) {
+           updatedItem.quantity = aiOutput.quantity;
+           itemChanged = true;
+        }
+        if (aiOutput.price !== undefined && firstItem.price === 0) {
+           updatedItem.price = aiOutput.price;
+           itemChanged = true;
+        }
+        
+        if (itemChanged) {
+          suggestedData.lineItems = [updatedItem, ...currentFormData.lineItems.slice(1)];
+        }
+      }
+    }
+    // Smart fill could also suggest a rentPeriod if invoiceType is 'rent'
+    // if (currentFormData.invoiceType === 'rent' && aiOutput.rentPeriod) {
+    //   suggestedData.rentPeriod = aiOutput.rentPeriod;
     // }
 
 
     return suggestedData;
   } catch (error) {
     console.error("Smart Fill Error:", error);
-    // Return an empty object or throw a custom error to be handled by the client
     return {};
   }
 }

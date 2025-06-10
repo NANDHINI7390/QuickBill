@@ -11,7 +11,7 @@ import { useTheme } from '@/contexts/theme-context';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { FileText, UserCircle, LogOut, ListChecks, Loader2, Sun, Moon, Settings, User } from 'lucide-react';
+import { FileText, UserCircle, LogOut, ListChecks, Loader2, Sun, Moon, Settings, User, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const getInitials = (name?: string | null) => {
@@ -23,8 +23,12 @@ const getInitials = (name?: string | null) => {
   return name.substring(0, 2);
 };
 
+interface HeaderProps {
+  onBackToScenarioSelection?: () => void;
+  currentScenarioLabel?: string;
+}
 
-const Header: FC = () => {
+const Header: FC<HeaderProps> = ({ onBackToScenarioSelection, currentScenarioLabel }) => {
   const { user, loading } = useAuth();
   const { theme, setTheme } = useTheme();
   const router = useRouter();
@@ -47,12 +51,22 @@ const Header: FC = () => {
   return (
     <header className="py-4 sm:py-6 border-b">
       <div className="max-w-7xl mx-auto px-4 sm:px-0 flex items-center justify-between">
-        <Link href="/" className="flex items-center group">
-          <FileText className="h-8 w-8 sm:h-10 sm:w-10 text-primary group-hover:text-primary/90 transition-colors" />
-          <h1 className="ml-2 sm:ml-3 text-2xl sm:text-4xl font-headline font-bold text-primary group-hover:text-primary/90 transition-colors">
-            QuickBill
-          </h1>
-        </Link>
+        <div className="flex items-center">
+          {onBackToScenarioSelection && (
+            <Button variant="ghost" size="icon" onClick={onBackToScenarioSelection} className="mr-2 sm:mr-4" aria-label="Back to scenario selection">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          )}
+          <Link href="/" className="flex items-center group">
+            <FileText className="h-8 w-8 sm:h-10 sm:w-10 text-primary group-hover:text-primary/90 transition-colors" />
+            <div className="ml-2 sm:ml-3">
+              <h1 className="text-2xl sm:text-4xl font-headline font-bold text-primary group-hover:text-primary/90 transition-colors">
+                QuickBill
+              </h1>
+              {currentScenarioLabel && <span className="text-xs text-muted-foreground sm:text-sm">{currentScenarioLabel}</span>}
+            </div>
+          </Link>
+        </div>
         <nav className="flex items-center gap-1 sm:gap-2">
           <Button
             variant="ghost"

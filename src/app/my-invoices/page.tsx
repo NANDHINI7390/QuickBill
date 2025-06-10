@@ -16,20 +16,23 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Eye, Trash2, PlusCircle, Loader2, ListChecks } from 'lucide-react';
+import { getScenarioTag, type InvoiceScenarioId } from '@/config/invoice-scenarios'; // Import scenario utilities
 
-interface DisplayInvoice extends Omit<InvoiceFormValues, 'invoiceDate' | 'createdAt' | 'updatedAt'> {
-  invoiceDate: string; // Formatted string
+interface DisplayInvoice extends Omit<InvoiceFormValues, 'invoiceDate' | 'createdAt' | 'updatedAt' | 'invoiceType'> {
+  invoiceDate: string; 
   createdAt?: string;
   totalAmount: number;
+  invoiceType: InvoiceScenarioId; 
+  invoiceTypeTag?: string;
 }
 
-// Helper functions moved outside the component
 const calculateTotal = (items: InvoiceFormValues['lineItems']): number => {
   return items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.price)), 0);
 };
 
 const formatCurrency = (amount: number | undefined): string => {
   if (amount === undefined) return 'N/A';
+  if (isNaN(amount)) return formatCurrency(0);
   return amount.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 };
 
@@ -52,9 +55,11 @@ export default function MyInvoicesPage() {
         const data = docSnap.data() as InvoiceFormValues;
         fetchedInvoices.push({
           ...data,
-          id: docSnap.id, // Use Firestore doc ID as the invoice ID for operations
+          id: docSnap.id,
+          invoiceType: data.invoiceType || 'custom', // Default if not set
+          invoiceTypeTag: getScenarioTag(data.invoiceType || 'custom'),
           invoiceDate: data.invoiceDate instanceof Timestamp ? format(data.invoiceDate.toDate(), 'PPP') : format(new Date(data.invoiceDate), 'PPP'),
-          createdAt: data.createdAt instanceof Timestamp ? format(data.createdAt.toDate(), 'PPpp') : (data.createdAt ? format(new Date(data.createdAt), 'PPpp') : undefined),
+          createdAt: data.createdAt instanceof Timestamp ? format(data.createdAt.toDate(), 'PPpp') : (data.createdAt ? format(new Date(data.createdAt as any), 'PPpp') : undefined),
           totalAmount: calculateTotal(data.lineItems || []),
         });
       });
@@ -71,7 +76,6 @@ export default function MyInvoicesPage() {
     if (user) {
       fetchInvoices();
     } else if (!authLoading) {
-      // If auth is done loading and still no user, redirect
       router.push('/login');
     }
   }, [user, authLoading, router, fetchInvoices]);
@@ -81,7 +85,7 @@ export default function MyInvoicesPage() {
     try {
       await deleteDoc(doc(db, `users/${user.uid}/invoices`, invoiceId));
       toast({ title: "Invoice Deleted", description: "The invoice has been successfully deleted." });
-      fetchInvoices(); // Refresh the list
+      fetchInvoices(); 
     } catch (error) {
       console.error("Error deleting invoice:", error);
       toast({ variant: "destructive", title: "Delete Error", description: "Could not delete the invoice." });
@@ -138,6 +142,7 @@ export default function MyInvoicesPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Invoice #</TableHead>
+                      <TableHead>Type</TableHead>
                       <TableHead>Client</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
@@ -148,9 +153,10 @@ export default function MyInvoicesPage() {
                     {invoices.map((invoice) => (
                       <TableRow key={invoice.id}>
                         <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{invoice.invoiceTypeTag || invoice.invoiceType}</TableCell>
                         <TableCell>{invoice.clientName}</TableCell>
                         <TableCell>{invoice.invoiceDate}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(invoice.totalAmount)}</TableCell>
+                        <TableCell className="text-right">{invoice.invoiceType === 'delivery_receipt' ? 'N/A' : formatCurrency(invoice.totalAmount)}</TableCell>
                         <TableCell className="text-center">
                           <div className="flex justify-center items-center gap-1 sm:gap-2">
                             <Button variant="ghost" size="icon" onClick={() => handleViewInvoice(invoice.id)} title="View/Edit">
