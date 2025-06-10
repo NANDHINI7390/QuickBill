@@ -44,20 +44,26 @@ const prompt = ai.definePrompt({
   name: 'smartFillPrompt',
   input: {schema: SmartFillInputSchema},
   output: {schema: SmartFillOutputSchema},
-  prompt: `You are an AI assistant designed to intelligently fill in invoice fields.
+  prompt: `You are an AI assistant designed to intelligently fill in invoice fields based on the provided text or existing field values.
+Your goal is to extract relevant information and populate the corresponding fields in a structured JSON format, adhering strictly to the output schema.
 
-  Given the following information, extract and fill in the missing fields. If a field cannot be determined, leave it blank.
+Analyze the combined information from any existing fields and the 'Invoice Text'.
+Existing Business Name: {{{businessName}}}
+Existing Business Address: {{{businessAddress}}}
+Existing Client Name: {{{clientName}}}
+Existing Client Address: {{{clientAddress}}}
+Example Item Description (from first item, if any): {{{itemDescription}}}
+Example Quantity (from first item, if any): {{{quantity}}}
+Example Price (from first item, if any): {{{price}}}
 
-  Business Name: {{{businessName}}}
-  Business Address: {{{businessAddress}}}
-  Client Name: {{{clientName}}}
-  Client Address: {{{clientAddress}}}
-  Item Description: {{{itemDescription}}}
-  Quantity: {{{quantity}}}
-  Price: {{{price}}}
-  Invoice Text: {{{invoiceText}}}
+Primary source for extraction is the 'Invoice Text':
+{{{invoiceText}}}
 
-  Output the extracted information in JSON format.
+Based on your analysis of ALL provided information, determine values for the fields defined in the output schema (businessName, businessAddress, clientName, clientAddress, itemDescription, quantity, price).
+If a specific piece of information for a field is not found or cannot be reliably extracted, OMIT that field entirely from your JSON output. Do not include it with an empty string or a placeholder unless that placeholder is the actual extracted value.
+Focus on extracting information explicitly present. Do not invent information.
+
+Your output MUST be a valid JSON object.
   `,
 });
 
