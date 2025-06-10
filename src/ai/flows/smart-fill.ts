@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -44,27 +45,32 @@ const prompt = ai.definePrompt({
   name: 'smartFillPrompt',
   input: {schema: SmartFillInputSchema},
   output: {schema: SmartFillOutputSchema},
-  prompt: `You are an AI assistant designed to intelligently fill in invoice fields based on the provided text or existing field values.
-Your goal is to extract relevant information and populate the corresponding fields in a structured JSON format, adhering strictly to the output schema.
+  prompt: `You are an AI assistant specialized in extracting structured information from text for invoices.
+Your task is to populate a JSON object with the following fields: 'businessName', 'businessAddress', 'clientName', 'clientAddress', 'itemDescription', 'quantity', and 'price'.
 
-Analyze the combined information from any existing fields and the 'Invoice Text'.
-Existing Business Name: {{{businessName}}}
-Existing Business Address: {{{businessAddress}}}
-Existing Client Name: {{{clientName}}}
-Existing Client Address: {{{clientAddress}}}
-Example Item Description (from first item, if any): {{{itemDescription}}}
-Example Quantity (from first item, if any): {{{quantity}}}
-Example Price (from first item, if any): {{{price}}}
+Guidelines:
+1.  Analyze ALL provided information: existing field values AND the 'Invoice Text'.
+    - Existing Business Name: {{{businessName}}}
+    - Existing Business Address: {{{businessAddress}}}
+    - Existing Client Name: {{{clientName}}}
+    - Existing Client Address: {{{clientAddress}}}
+    - Existing Item Description (if provided): {{{itemDescription}}}
+    - Existing Quantity (if provided): {{{quantity}}}
+    - Existing Price (if provided): {{{price}}}
+    - Primary source for new extraction: 'Invoice Text': "{{{invoiceText}}}"
 
-Primary source for extraction is the 'Invoice Text':
-{{{invoiceText}}}
+2.  Extraction Rules:
+    - Prioritize information found in 'Invoice Text' for extraction.
+    - Use existing field values as context or if the information is not present in 'InvoiceText'.
+    - For 'quantity' and 'price' fields, ensure the output values are NUMBERS (e.g., 50, 12.75), not strings.
+    - If 'Invoice Text' seems to describe multiple line items, extract details for only the most prominent or first clearly described item into 'itemDescription', 'quantity', and 'price'.
 
-Based on your analysis of ALL provided information, determine values for the fields defined in the output schema (businessName, businessAddress, clientName, clientAddress, itemDescription, quantity, price).
-If a specific piece of information for a field is not found or cannot be reliably extracted, OMIT that field entirely from your JSON output. Do not include it with an empty string or a placeholder unless that placeholder is the actual extracted value.
-Focus on extracting information explicitly present. Do not invent information.
-
-Your output MUST be a valid JSON object.
-  `,
+3.  Output Format:
+    - Your output MUST be a single, valid JSON object.
+    - Adhere strictly to the output schema (fields: businessName, businessAddress, clientName, clientAddress, itemDescription, quantity, price).
+    - If, after analysis, a specific piece of information for a field cannot be reliably found or inferred, OMIT that field entirely from your JSON output. Do not include fields with empty strings or null values unless that is the actual extracted/inferred value.
+    - Do not invent information. Only extract or infer from the provided inputs.
+`,
 });
 
 const smartFillFlow = ai.defineFlow(
@@ -74,7 +80,13 @@ const smartFillFlow = ai.defineFlow(
     outputSchema: SmartFillOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output!;
+    const response = await prompt(input);
+    if (!response.output) {
+      console.warn('Smart Fill AI did not return valid schema-compliant output. Input was:', JSON.stringify(input));
+      // Return an empty object, which is valid for SmartFillOutputSchema as all fields are optional.
+      return {}; 
+    }
+    return response.output;
   }
 );
+
