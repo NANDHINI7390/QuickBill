@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { invoiceFormSchema, type InvoiceFormValues, lineItemSchema } from '@/lib/schemas';
+import { invoiceFormSchema, type InvoiceFormValues } from '@/lib/schemas'; // Removed lineItemSchema import as it's not directly used here for parsing
 import Header from '@/components/header';
 import InvoiceForm from '@/components/invoice-form';
 import InvoicePreview from '@/components/invoice-preview';
@@ -31,7 +31,7 @@ const getFreshInvoice = (): InvoiceFormValues => ({
   clientName: '',
   clientAddress: '',
   invoiceDate: new Date(),
-  lineItems: [{ ...lineItemSchema.parse({ id: uuidv4() }), description: '', quantity: 1, price: 0 }],
+  lineItems: [{ id: uuidv4(), description: '', quantity: 1, price: 0 }], // Corrected: Directly provide full default line item
   invoiceText: '',
   userId: undefined,
   createdAt: undefined,
@@ -43,7 +43,7 @@ export default function QuickBillPage() {
   const methods = useForm<InvoiceFormValues>({
     resolver: zodResolver(invoiceFormSchema),
     defaultValues: getFreshInvoice(),
-    mode: 'onChange', // Or 'onBlur'
+    mode: 'onChange',
   });
 
   const { watch, reset, getValues, setValue, formState: {isDirty, isValid} } = methods;
@@ -78,7 +78,6 @@ export default function QuickBillPage() {
           const invoiceSnap = await getDoc(invoiceDocRef);
           if (invoiceSnap.exists()) {
             const invoiceData = invoiceSnap.data() as InvoiceFormValues;
-            // Convert Firestore Timestamps to JS Dates
             if (invoiceData.invoiceDate && invoiceData.invoiceDate instanceof Timestamp) {
               invoiceData.invoiceDate = invoiceData.invoiceDate.toDate();
             }
@@ -88,7 +87,6 @@ export default function QuickBillPage() {
             if (invoiceData.updatedAt && invoiceData.updatedAt instanceof Timestamp) {
               invoiceData.updatedAt = invoiceData.updatedAt.toDate();
             }
-            // Ensure line items have IDs
              invoiceData.lineItems = invoiceData.lineItems.map(item => ({...item, id: item.id || uuidv4()}));
 
             reset(invoiceData);
@@ -103,7 +101,6 @@ export default function QuickBillPage() {
           resetFormToFreshInvoice();
         } finally {
           setIsLoadingInvoice(false);
-          // Clear the query param from URL without full page reload
           router.replace('/', { scroll: false }); 
         }
       };
@@ -115,6 +112,11 @@ export default function QuickBillPage() {
 
 
   const handleSmartFill = async () => {
+    if (!user) {
+      toast({ variant: "destructive", title: "Login Required", description: "Please log in to use Smart Fill." });
+      router.push('/login?redirect=/'); 
+      return;
+    }
     const currentValues = getValues();
     setIsSmartFilling(true);
     toast({ title: "Smart Fill In Progress...", description: "AI is analyzing your input." });
@@ -139,6 +141,11 @@ export default function QuickBillPage() {
   };
 
   const handleDownloadPDF = () => {
+    if (!user) {
+      toast({ variant: "destructive", title: "Login Required", description: "Please log in to download the PDF." });
+      router.push('/login?redirect=/');
+      return;
+    }
     if (isClient) {
       toast({ title: "Preparing PDF...", description: "Your browser's print dialog will appear." });
       setTimeout(() => window.print(), 500);
@@ -147,7 +154,8 @@ export default function QuickBillPage() {
 
   const handleSaveInvoice = async () => {
     if (!user) {
-      toast({ variant: "destructive", title: "Not Logged In", description: "Please log in to save invoices." });
+      toast({ variant: "destructive", title: "Login Required", description: "Please log in to save invoices." });
+      router.push('/login?redirect=/');
       return;
     }
     if (!isValid) {
@@ -161,35 +169,26 @@ export default function QuickBillPage() {
     const invoiceDataToSave: InvoiceFormValues = {
       ...currentFormValues,
       userId: user.uid,
-      updatedAt: serverTimestamp() as any, // Firestore will convert this
-      // If it's a new invoice (based on whether createdAt is already set or not)
+      updatedAt: serverTimestamp() as any, 
       ...(currentFormValues.createdAt ? {} : { createdAt: serverTimestamp() as any }),
     };
-     // Ensure invoice ID is present
     if (!invoiceDataToSave.id) {
       invoiceDataToSave.id = uuidv4();
     }
-    // Ensure invoice number is present
     if (!invoiceDataToSave.invoiceNumber) {
       invoiceDataToSave.invoiceNumber = generateInvoiceNumber();
-      setValue('invoiceNumber', invoiceDataToSave.invoiceNumber); // Update form state too
+      setValue('invoiceNumber', invoiceDataToSave.invoiceNumber);
     }
-
 
     try {
       const invoiceDocRef = doc(db, `users/${user.uid}/invoices`, invoiceDataToSave.id);
       await setDoc(invoiceDocRef, invoiceDataToSave, { merge: true });
       
-      // After successful save, update the form state with server timestamps (if needed, or just re-fetch/rely on local)
-      // For simplicity, we can assume the local `updatedAt` is now the server one.
-      // Or, to get actual server timestamp, you might re-fetch, but for now, this is okay.
       setValue('updatedAt', new Date(), {shouldDirty: false}); 
       if (!getValues('createdAt')) {
          setValue('createdAt', new Date(), {shouldDirty: false});
       }
-      // Reset dirty state as it's now saved
       methods.reset(getValues(), { keepValues: true, keepDirty: false, keepDefaultValues: false });
-
 
       toast({
         title: "Invoice Saved",
@@ -203,6 +202,13 @@ export default function QuickBillPage() {
     }
   };
   
+  // Initial check to assign user ID if user is already logged in when component mounts
+  useEffect(() => {
+    if (user && !getValues('userId')) {
+      setValue('userId', user.uid, { shouldDirty: false });
+    }
+  }, [user, setValue, getValues]);
+
   if (authLoading || !isClient || isLoadingInvoice) {
     return (
       <div className="min-h-screen bg-background text-foreground p-4 sm:p-8 font-body flex flex-col">

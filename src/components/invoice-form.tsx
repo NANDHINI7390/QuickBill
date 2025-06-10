@@ -3,7 +3,7 @@
 
 import type { FC } from 'react';
 import { useFormContext, Controller, useFieldArray } from 'react-hook-form';
-import type { InvoiceFormValues } from '@/lib/schemas';
+import type { InvoiceFormValues, LineItemFormValues } from '@/lib/schemas'; // LineItem for calculation
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,10 +11,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarDays, PlusCircle, Save, Sparkles, Trash2, Download, FilePlus2 } from 'lucide-react';
+import { CalendarDays, PlusCircle, Save, Sparkles, Trash2, Download, FilePlus2, Share2, Mail } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from '@/contexts/auth-context';
+import { useRouter } from 'next/navigation';
+
 
 interface InvoiceFormProps {
   onSmartFill: () => Promise<void>;
@@ -33,7 +37,10 @@ const InvoiceForm: FC<InvoiceFormProps> = ({
   isSaving,
   isSmartFilling
 }) => {
-  const { control, register, formState: { errors, isDirty, isValid } } = useFormContext<InvoiceFormValues>();
+  const { control, register, formState: { errors, isDirty, isValid }, getValues } = useFormContext<InvoiceFormValues>();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const router = useRouter();
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -43,6 +50,74 @@ const InvoiceForm: FC<InvoiceFormProps> = ({
   const addNewLineItem = () => {
     append({ id: uuidv4(), description: '', quantity: 1, price: 0 });
   };
+
+  const calculateTotalForSharing = (items: LineItemFormValues[] | undefined): number => {
+    if (!items) return 0;
+    return items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.price) || 0), 0);
+  };
+
+  const formatCurrencyForSharing = (amount: number): string => {
+    return amount.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
+  };
+
+  const handleShareWhatsApp = () => {
+    if (!user) {
+      toast({ variant: "destructive", title: "Login Required", description: "Please log in to share invoices." });
+      router.push('/login?redirect=/');
+      return;
+    }
+    const formData = getValues();
+    if (!isValid || !formData.invoiceNumber) {
+      toast({ title: "Cannot Share", description: "Please complete the invoice with valid details before sharing.", variant: "destructive" });
+      return;
+    }
+    const total = calculateTotalForSharing(formData.lineItems);
+    const invoiceDateFormatted = formData.invoiceDate ? format(new Date(formData.invoiceDate), 'PPP') : 'N/A';
+    const message = 
+`Invoice Details:
+Number: ${formData.invoiceNumber || 'N/A'}
+Client: ${formData.clientName || 'N/A'}
+Date: ${invoiceDateFormatted}
+Total: ${formatCurrencyForSharing(total)}
+
+Sent via QuickBill`;
+    window.open(`whatsapp://send?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  const handleShareEmail = () => {
+     if (!user) {
+      toast({ variant: "destructive", title: "Login Required", description: "Please log in to share invoices." });
+      router.push('/login?redirect=/');
+      return;
+    }
+    const formData = getValues();
+     if (!isValid || !formData.invoiceNumber) {
+      toast({ title: "Cannot Share", description: "Please complete the invoice with valid details before sharing.", variant: "destructive" });
+      return;
+    }
+    const total = calculateTotalForSharing(formData.lineItems);
+    const invoiceDateFormatted = formData.invoiceDate ? format(new Date(formData.invoiceDate), 'PPP') : 'N/A';
+    const subject = `Invoice ${formData.invoiceNumber || ''} from ${formData.businessName || 'Your Business'}`;
+    const body = 
+`Hello ${formData.clientName || 'Valued Client'},
+
+Please find your invoice details below:
+
+Invoice Number: ${formData.invoiceNumber || 'N/A'}
+Invoice Date: ${invoiceDateFormatted}
+Total Amount: ${formatCurrencyForSharing(total)}
+
+Line Items:
+${(formData.lineItems || []).map(item => `- ${item.description} (Qty: ${item.quantity}, Price: ${formatCurrencyForSharing(item.price || 0)})`).join('\n')}
+
+Thank you for your business!
+
+Regards,
+${formData.businessName || 'QuickBill User'}
+(Sent via QuickBill)`;
+    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+  };
+
 
   return (
     <Card className="shadow-lg">
@@ -55,7 +130,6 @@ const InvoiceForm: FC<InvoiceFormProps> = ({
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Business Details */}
         <section className="space-y-4 p-4 border rounded-md">
           <h3 className="text-lg font-semibold text-primary">Your Details</h3>
           <div>
@@ -70,7 +144,6 @@ const InvoiceForm: FC<InvoiceFormProps> = ({
           </div>
         </section>
 
-        {/* Client Details */}
         <section className="space-y-4 p-4 border rounded-md">
           <h3 className="text-lg font-semibold text-primary">Client Details</h3>
           <div>
@@ -85,7 +158,6 @@ const InvoiceForm: FC<InvoiceFormProps> = ({
           </div>
         </section>
         
-        {/* Invoice Date & Number */}
          <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 border rounded-md">
            <div>
              <Label htmlFor="invoiceDate" className="text-lg font-semibold text-primary block mb-2">Invoice Date</Label>
@@ -126,7 +198,6 @@ const InvoiceForm: FC<InvoiceFormProps> = ({
             </div>
         </section>
 
-        {/* Line Items */}
         <section className="space-y-4 p-4 border rounded-md">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold text-primary">Line Items</h3>
@@ -183,7 +254,6 @@ const InvoiceForm: FC<InvoiceFormProps> = ({
            {errors.lineItems?.root && <p className="text-sm text-destructive mt-1">{errors.lineItems.root.message}</p>}
         </section>
 
-        {/* Smart Fill Text Area */}
         <section className="space-y-2 p-4 border rounded-md">
           <h3 className="text-lg font-semibold text-primary">Smart Fill Assistant</h3>
           <Label htmlFor="invoiceText">Paste any invoice text or notes here for AI assistance:</Label>
@@ -196,7 +266,7 @@ const InvoiceForm: FC<InvoiceFormProps> = ({
            {errors.invoiceText && <p className="text-sm text-destructive mt-1">{errors.invoiceText.message}</p>}
         </section>
       </CardContent>
-      <CardFooter className="flex flex-col sm:flex-row justify-end gap-3 p-6 border-t">
+      <CardFooter className="flex flex-col sm:flex-row flex-wrap justify-end gap-3 p-6 border-t">
         <Button type="button" variant="outline" onClick={onSmartFill} className="w-full sm:w-auto" disabled={isSmartFilling || isSaving}>
           <Sparkles className="mr-2 h-4 w-4" /> {isSmartFilling ? 'Filling...' : 'Smart Fill'}
         </Button>
@@ -205,6 +275,12 @@ const InvoiceForm: FC<InvoiceFormProps> = ({
         </Button>
         <Button type="button" onClick={onDownloadPDF} className="w-full sm:w-auto" disabled={isSaving}>
           <Download className="mr-2 h-4 w-4" /> Download PDF
+        </Button>
+        <Button type="button" variant="outline" onClick={handleShareWhatsApp} className="w-full sm:w-auto" disabled={isSaving || !isValid}>
+          <Share2 className="mr-2 h-4 w-4" /> Share via WhatsApp
+        </Button>
+        <Button type="button" variant="outline" onClick={handleShareEmail} className="w-full sm:w-auto" disabled={isSaving || !isValid}>
+          <Mail className="mr-2 h-4 w-4" /> Share via Email
         </Button>
       </CardFooter>
     </Card>
