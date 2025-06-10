@@ -9,82 +9,83 @@ body {
 
 @layer base {
   :root {
-    --background: 210 40% 98%; /* Light Grayish Blue */
-    --foreground: 220 15% 25%; /* Dark Desaturated Blue */
+    --background: 240 60% 99%; /* Very light lavender */
+    --foreground: 240 10% 20%; /* Dark cool gray */
 
-    --card: 210 40% 98%; /* Match background */
-    --card-foreground: 220 15% 25%;
+    --card: 240 60% 99%;
+    --card-foreground: 240 10% 20%;
 
-    --popover: 210 40% 98%; /* Match background */
-    --popover-foreground: 220 15% 25%;
+    --popover: 240 60% 99%;
+    --popover-foreground: 240 10% 20%;
 
-    --primary: 190 70% 45%; /* Cyan/Teal */
-    --primary-foreground: 210 40% 98%; /* Whiteish */
+    --primary: 250 65% 55%; /* Rich Indigo */
+    --primary-foreground: 240 60% 99%;
 
-    --secondary: 200 50% 90%; /* Lighter Cyan/Teal */
-    --secondary-foreground: 190 70% 40%; /* Darker Cyan/Teal for contrast */
+    --secondary: 250 50% 90%; /* Lighter Indigo/Lavender */
+    --secondary-foreground: 250 65% 45%;
 
-    --muted: 210 30% 85%; /* Greyish */
-    --muted-foreground: 220 10% 45%; /* Darker Greyish */
+    --muted: 240 20% 90%; /* Light cool gray */
+    --muted-foreground: 240 10% 45%;
 
-    --accent: 30 95% 55%; /* Vibrant Orange */
-    --accent-foreground: 0 0% 100%; /* White */
+    --accent: 35 95% 58%; /* Vibrant Amber */
+    --accent-foreground: 240 10% 15%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 210 25% 75%;
-    --input: 210 30% 92%; /* Slightly darker than background for inputs */
-    --ring: 190 70% 45%; /* Primary for focus rings */
+    --border: 240 20% 85%;
+    --input: 240 30% 96%; 
+    --ring: 250 65% 55%; /* Indigo for focus rings */
 
     --radius: 0.5rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-background: 245 30% 96%;
+    --sidebar-foreground: 250 15% 30%;
+    --sidebar-primary: 250 65% 55%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 250 40% 92%;
+    --sidebar-accent-foreground: 250 65% 50%;
+    --sidebar-border: 240 20% 88%;
+    --sidebar-ring: 250 65% 55%;
   }
+
   .dark {
-    /* Keeping dark mode distinct for now, can be harmonized later if needed */
-    --background: 220 25% 10%;
-    --foreground: 210 40% 98%;
+    --background: 240 15% 12%; /* Very dark deep blue/purple */
+    --foreground: 240 25% 90%; /* Light cool gray */
 
-    --card: 220 25% 10%;
-    --card-foreground: 210 40% 98%;
+    --card: 240 15% 12%;
+    --card-foreground: 240 25% 90%;
 
-    --popover: 220 25% 10%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 240 15% 12%;
+    --popover-foreground: 240 25% 90%;
 
-    --primary: 190 60% 55%; /* Dark mode Teal */
-    --primary-foreground: 220 15% 90%;
+    --primary: 250 70% 65%; /* Brighter Indigo for dark mode */
+    --primary-foreground: 240 10% 15%;
 
-    --secondary: 220 20% 18%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 250 30% 25%; /* Darker muted Indigo/Purple */
+    --secondary-foreground: 240 25% 85%;
 
-    --muted: 220 20% 15%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 240 15% 20%; /* Dark gray */
+    --muted-foreground: 240 15% 65%;
 
-    --accent: 30 85% 60%; /* Dark mode Orange */
-    --accent-foreground: 210 40% 98%;
+    --accent: 38 100% 65%; /* Brighter Amber for dark mode */
+    --accent-foreground: 240 10% 10%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 70% 45%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 220 20% 25%;
-    --input: 220 20% 18%;
-    --ring: 190 60% 55%;
+    --border: 240 15% 25%;
+    --input: 240 15% 18%;
+    --ring: 250 70% 65%;
     
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 245 15% 10%;
+    --sidebar-foreground: 240 25% 92%;
+    --sidebar-primary: 250 70% 65%;
+    --sidebar-primary-foreground: 0 0% 10%;
+    --sidebar-accent: 250 25% 20%;
+    --sidebar-accent-foreground: 250 70% 75%;
+    --sidebar-border: 240 15% 22%;
+    --sidebar-ring: 250 70% 65%;
   }
 }
 

@@ -7,12 +7,14 @@ import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAuth } from '@/contexts/auth-context';
+import { useTheme } from '@/contexts/theme-context';
 import { Button } from '@/components/ui/button';
-import { FileText, UserCircle, LogOut, ListChecks, Loader2 } from 'lucide-react';
+import { FileText, UserCircle, LogOut, ListChecks, Loader2, Sun, Moon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const Header: FC = () => {
   const { user, loading } = useAuth();
+  const { theme, setTheme } = useTheme();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -26,6 +28,10 @@ const Header: FC = () => {
     }
   };
 
+  const toggleTheme = () => {
+    setTheme(theme === 'light' ? 'dark' : 'light');
+  };
+
   return (
     <header className="py-4 sm:py-6 border-b">
       <div className="max-w-7xl mx-auto px-4 sm:px-0 flex items-center justify-between">
@@ -35,7 +41,16 @@ const Header: FC = () => {
             QuickBill
           </h1>
         </Link>
-        <nav className="flex items-center gap-2 sm:gap-4">
+        <nav className="flex items-center gap-1 sm:gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleTheme}
+            aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+          </Button>
           {loading ? (
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           ) : user ? (
