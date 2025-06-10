@@ -9,83 +9,83 @@ body {
 
 @layer base {
   :root {
-    --background: 240 60% 99%; /* Very light lavender */
-    --foreground: 240 10% 20%; /* Dark cool gray */
+    --background: 220 20% 97%; /* Light Neutral Gray - #F9FAFB */
+    --foreground: 220 10% 25%; /* Dark Neutral Gray */
 
-    --card: 240 60% 99%;
-    --card-foreground: 240 10% 20%;
+    --card: 0 0% 100%; /* White cards */
+    --card-foreground: 220 10% 20%;
 
-    --popover: 240 60% 99%;
-    --popover-foreground: 240 10% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 10% 20%;
 
-    --primary: 250 65% 55%; /* Rich Indigo */
-    --primary-foreground: 240 60% 99%;
+    --primary: 145 100% 30%; /* Green - #009B4D */
+    --primary-foreground: 0 0% 100%; /* White */
 
-    --secondary: 250 50% 90%; /* Lighter Indigo/Lavender */
-    --secondary-foreground: 250 65% 45%;
+    --secondary: 145 60% 90%; /* Lighter Green */
+    --secondary-foreground: 145 100% 20%;
 
-    --muted: 240 20% 90%; /* Light cool gray */
-    --muted-foreground: 240 10% 45%;
+    --muted: 220 20% 90%; /* Light gray for muted elements */
+    --muted-foreground: 220 10% 45%; /* Darker gray for muted text */
 
-    --accent: 35 95% 58%; /* Vibrant Amber */
-    --accent-foreground: 240 10% 15%;
+    --accent: 145 80% 40%; /* Slightly darker/desaturated green for accents if needed */
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 20% 85%;
-    --input: 240 30% 96%; 
-    --ring: 250 65% 55%; /* Indigo for focus rings */
+    --border: 220 20% 88%; /* Neutral Gray for borders */
+    --input: 220 30% 96%; 
+    --ring: 145 100% 30%; /* Green for focus rings */
 
     --radius: 0.5rem;
 
-    --sidebar-background: 245 30% 96%;
-    --sidebar-foreground: 250 15% 30%;
-    --sidebar-primary: 250 65% 55%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 250 40% 92%;
-    --sidebar-accent-foreground: 250 65% 50%;
-    --sidebar-border: 240 20% 88%;
-    --sidebar-ring: 250 65% 55%;
+    --sidebar-background: 220 20% 94%; /* Slightly darker than main bg */
+    --sidebar-foreground: 220 10% 25%;
+    --sidebar-primary: 145 100% 30%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 145 60% 85%;
+    --sidebar-accent-foreground: 145 100% 20%;
+    --sidebar-border: 220 20% 85%;
+    --sidebar-ring: 145 100% 30%;
   }
 
   .dark {
-    --background: 240 15% 12%; /* Very dark deep blue/purple */
-    --foreground: 240 25% 90%; /* Light cool gray */
+    --background: 220 15% 12%; /* Very dark gray */
+    --foreground: 220 25% 90%; /* Light cool gray */
 
-    --card: 240 15% 12%;
-    --card-foreground: 240 25% 90%;
+    --card: 220 15% 15%; /* Dark card */
+    --card-foreground: 220 25% 90%;
 
-    --popover: 240 15% 12%;
-    --popover-foreground: 240 25% 90%;
+    --popover: 220 15% 15%;
+    --popover-foreground: 220 25% 90%;
 
-    --primary: 250 70% 65%; /* Brighter Indigo for dark mode */
-    --primary-foreground: 240 10% 15%;
+    --primary: 145 70% 50%; /* Brighter Green for dark mode */
+    --primary-foreground: 220 10% 10%; /* Dark for on-green text */
 
-    --secondary: 250 30% 25%; /* Darker muted Indigo/Purple */
-    --secondary-foreground: 240 25% 85%;
+    --secondary: 145 40% 25%; /* Darker muted Green */
+    --secondary-foreground: 145 70% 85%;
 
-    --muted: 240 15% 20%; /* Dark gray */
-    --muted-foreground: 240 15% 65%;
+    --muted: 220 15% 20%; /* Dark gray */
+    --muted-foreground: 220 15% 65%;
 
-    --accent: 38 100% 65%; /* Brighter Amber for dark mode */
-    --accent-foreground: 240 10% 10%;
+    --accent: 145 70% 55%; /* Brighter Green for accents */
+    --accent-foreground: 220 10% 5%;
 
     --destructive: 0 70% 45%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 15% 25%;
-    --input: 240 15% 18%;
-    --ring: 250 70% 65%;
+    --border: 220 15% 25%; /* Darker gray borders */
+    --input: 220 15% 18%;
+    --ring: 145 70% 50%;
     
-    --sidebar-background: 245 15% 10%;
-    --sidebar-foreground: 240 25% 92%;
-    --sidebar-primary: 250 70% 65%;
+    --sidebar-background: 220 15% 10%;
+    --sidebar-foreground: 220 25% 92%;
+    --sidebar-primary: 145 70% 50%;
     --sidebar-primary-foreground: 0 0% 10%;
-    --sidebar-accent: 250 25% 20%;
-    --sidebar-accent-foreground: 250 70% 75%;
-    --sidebar-border: 240 15% 22%;
-    --sidebar-ring: 250 70% 65%;
+    --sidebar-accent: 145 35% 22%;
+    --sidebar-accent-foreground: 145 70% 75%;
+    --sidebar-border: 220 15% 20%;
+    --sidebar-ring: 145 70% 50%;
   }
 }
 
@@ -95,7 +95,14 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    /* Apply #F9FAFB directly for light mode, or use the CSS var */
+    /* background-color: #F9FAFB;  */
   }
+  /* Ensure light mode uses #F9FAFB explicitly if var isn't enough */
+  html:not(.dark) body {
+     background-color: #F9FAFB; /* --background HSL might slightly differ */
+  }
+
 }
 
 @media print {
