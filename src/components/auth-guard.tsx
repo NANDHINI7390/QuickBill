@@ -5,14 +5,14 @@ import { useAuth } from '@/contexts/auth-context';
 import { useRouter, usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
-import { Loader2 } from 'lucide-react'; // Assuming Loader2 is used for loading state
+import { Loader2 } from 'lucide-react';
 
 interface AuthGuardProps {
   children: ReactNode;
 }
 
 // Paths accessible to everyone, logged in or not (actions on these pages might still require auth)
-const publicAccessPaths = ['/']; 
+const publicAccessPaths = ['/'];
 // Paths specifically for authentication (login, signup)
 const authSpecificPaths = ['/login', '/signup'];
 
