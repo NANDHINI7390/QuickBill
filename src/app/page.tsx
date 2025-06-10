@@ -6,6 +6,7 @@ import Header from '@/components/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FilePlus2, ArrowRight } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export default function HomePage() {
   return (
@@ -52,6 +53,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-// Need to import motion from framer-motion for the animation
-import { motion } from 'framer-motion';

@@ -1,5 +1,5 @@
 
-import type { ScenarioId } from '@/config/invoice-scenarios'; // Updated import
+import type { ScenarioId } from '@/config/invoice-scenarios';
 import type { Timestamp } from 'firebase/firestore';
 
 export interface LineItem {
@@ -9,24 +9,21 @@ export interface LineItem {
   price: number;
 }
 
-// This type is derived from the form schema, useful for props
 export interface InvoiceFormValues {
   // Common fields
-  id: string; // Internal UUID for the invoice
-  publicInvoiceId?: string; // Shareable, shorter ID
-  invoiceType: ScenarioId; // e.g., 'rent', 'freelance'
-  invoiceNumber?: string; // Optional, can be auto-generated or scenario-specific
-  userId?: string; // For Firestore, if user is logged in
-  createdAt?: Timestamp | Date | any; // Firestore Timestamp or Date
-  updatedAt?: Timestamp | Date | any; // Firestore Timestamp or Date
+  id: string; 
+  publicInvoiceId?: string; 
+  invoiceType: ScenarioId; 
+  invoiceNumber?: string; 
+  userId?: string; 
+  createdAt?: Timestamp | Date | any; 
+  updatedAt?: Timestamp | Date | any; 
   
-  // Scenario-specific fields will be dynamically added based on selection
-  // These are examples of how they might be structured in the flat form data
-  // Party Details (dynamic labels based on scenario)
-  issuerName?: string; // General term, can be Landlord, Freelancer, Seller, Company
-  issuerAddress?: string;
-  clientName?: string; // General term, can be Tenant, Client, Buyer
-  clientAddress?: string;
+  // Party details (general terms, labels will be dynamic)
+  issuerName?: string; // Covers Landlord, Freelancer, Seller, Company for Custom
+  issuerAddress?: string; // Not always needed, e.g., for simple product sale if sellerName is enough
+  clientName?: string; // Covers Tenant, Client, Buyer
+  clientAddress?: string; // Not always needed
 
   // Rent Scenario
   landlordName?: string;
@@ -34,33 +31,41 @@ export interface InvoiceFormValues {
   propertyAddress?: string;
   rentAmount?: number;
   paymentDate?: Date;
-  rentDuration?: string; // e.g. June 2025
+  rentDuration?: string; 
 
   // Freelance Work Scenario
   freelancerName?: string;
-  // clientName already covered
+  // clientName is shared
   serviceDescription?: string;
-  rate?: number; // Can be per hour, per project
+  rate?: number; 
   hoursWorked?: number;
-  // totalAmount for freelance might be calculated or use lineItems
+  // totalAmount for freelance might be calculated and stored in grandTotal
 
   // Product Sale Scenario
   sellerName?: string;
   buyerName?: string;
-  productDescription?: string; // For single product sale
-  quantity?: number; // For single product sale
-  unitPrice?: number; // For single product sale
-  // total for product sale might be calculated or use lineItems
+  productDescription?: string; 
+  quantity?: number; 
+  unitPrice?: number; 
+  // total for product sale might be calculated and stored in grandTotal
   paymentMethod?: string;
   saleDate?: Date;
 
   // Custom Invoice / General Use
-  invoiceDate?: Date; // Common date field
+  invoiceDate?: Date; // Common date field, can be paymentDate or saleDate for specific scenarios
   lineItems?: LineItem[];
-  tax?: string; // Can be amount or percentage string
-  grandTotal?: number; // Calculated
+  tax?: string; 
+  grandTotal?: number; // Calculated or set
   invoiceNotes?: string;
 
-  // For Smart Fill / AI
+  // For Smart Fill / AI (keeping for potential future use with new flow)
   invoiceText?: string; 
+
+  // Fields for signature flow (to be added later, good to have in type)
+  signatureRequested?: boolean;
+  signatureStatus?: 'pending' | 'signed_by_issuer' | 'signed_by_client' | 'completed' | 'declined';
+  signerEmail?: string; // Email of the party to sign
+  signedAt?: Timestamp | Date;
+  signerName?: string;
+  signerMetadata?: Record<string, any>; // To store timestamp, IP (server-side), device info (basic)
 }

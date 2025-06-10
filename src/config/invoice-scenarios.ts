@@ -10,13 +10,13 @@ export const SCENARIOS = [
       { name: 'propertyAddress', label: 'Property Address', placeholder: 'Enter property address', type: 'textarea', section: 'party_details' },
       { name: 'rentAmount', label: 'Rent Amount (₹)', placeholder: 'Enter rent amount in ₹', type: 'number', section: 'invoice_details' },
       { name: 'paymentDate', label: 'Payment Date', type: 'date', section: 'invoice_details' },
-      { name: 'rentDuration', label: 'Rent Duration', placeholder: 'e.g., June 2025', type: 'text', section: 'invoice_details' },
+      { name: 'rentDuration', label: 'Duration (e.g., June 2025)', placeholder: 'e.g., June 2025', type: 'text', section: 'invoice_details' },
     ],
     defaultValues: {
       landlordName: '',
       tenantName: '',
       propertyAddress: '',
-      rentAmount: undefined, // Use undefined for RHF default value for numbers
+      rentAmount: undefined,
       paymentDate: new Date(),
       rentDuration: '',
     }
@@ -29,9 +29,8 @@ export const SCENARIOS = [
       { name: 'freelancerName', label: 'Freelancer Name', placeholder: 'Your name or company', type: 'text', section: 'party_details' },
       { name: 'clientName', label: 'Client Name', placeholder: 'Enter client name', type: 'text', section: 'party_details' },
       { name: 'serviceDescription', label: 'Service Description', placeholder: 'e.g., Web Development Services', type: 'textarea', section: 'invoice_details' },
-      { name: 'rate', label: 'Rate (e.g., per hour, ₹)', placeholder: 'Enter rate', type: 'number', section: 'invoice_details' },
+      { name: 'rate', label: 'Rate (e.g., per hour, ₹)', placeholder: 'Enter rate in ₹', type: 'number', section: 'invoice_details' },
       { name: 'hoursWorked', label: 'Hours Worked', placeholder: 'Enter hours worked', type: 'number', section: 'invoice_details' },
-      // Total Amount will be calculated or use lineItems
       { name: 'invoiceDate', label: 'Invoice Date', type: 'date', section: 'invoice_details' },
     ],
     defaultValues: {
@@ -53,7 +52,6 @@ export const SCENARIOS = [
       { name: 'productDescription', label: 'Product Description', placeholder: 'Enter product name or description', type: 'text', section: 'invoice_details' },
       { name: 'quantity', label: 'Quantity', placeholder: 'Enter quantity', type: 'number', section: 'invoice_details' },
       { name: 'unitPrice', label: 'Rate per Unit (₹)', placeholder: 'Enter rate per unit in ₹', type: 'number', section: 'invoice_details' },
-      // Total will be calculated
       { name: 'paymentMethod', label: 'Payment Method', placeholder: 'e.g., Cash, UPI, Card', type: 'text', section: 'invoice_details' },
       { name: 'saleDate', label: 'Sale Date', type: 'date', section: 'invoice_details' },
     ],
@@ -71,14 +69,14 @@ export const SCENARIOS = [
     id: 'custom',
     label: 'Custom Invoice',
     tag: '[Custom Invoice]',
-    fields: [ // Custom invoice will primarily use line items
+    fields: [ 
       { name: 'issuerName', label: 'Company/Issuer Name', placeholder: 'Your company name', type: 'text', section: 'party_details' },
       { name: 'clientName', label: 'Client Name', placeholder: 'Enter client name', type: 'text', section: 'party_details' },
       { name: 'invoiceDate', label: 'Invoice Date', type: 'date', section: 'invoice_details' },
-      { name: 'tax', label: 'Tax (Amount or %)', placeholder: 'e.g., 500 or 18%', type: 'text', section: 'summary_details' }, // Use text to allow %
+      { name: 'tax', label: 'Tax (Amount or %)', placeholder: 'e.g., 500 or 18%', type: 'text', section: 'summary_details' }, 
       { name: 'invoiceNotes', label: 'Invoice Notes', placeholder: 'Optional notes or terms', type: 'textarea', section: 'summary_details' },
     ],
-    hasLineItems: true, // Special flag for custom
+    hasLineItems: true, 
     defaultValues: {
       issuerName: '',
       clientName: '',
@@ -96,8 +94,8 @@ export interface ScenarioField {
   name: string;
   label: string;
   placeholder?: string;
-  type: 'text' | 'number' | 'textarea' | 'date' | 'select'; // Add more types as needed
-  options?: { value: string; label: string }[]; // For select type
+  type: 'text' | 'number' | 'textarea' | 'date' | 'select'; 
+  options?: { value: string; label: string }[]; 
   section: 'party_details' | 'invoice_details' | 'summary_details' | 'line_items';
 }
 
@@ -115,8 +113,9 @@ export const getScenario = (id: ScenarioId | null | undefined): Scenario | undef
   return SCENARIOS.find(s => s.id === id);
 };
 
-// Old structure, to be deprecated or merged if functionality is distinct
-export const INVOICE_SCENARIOS = [
+
+// Keeping old structure for compatibility if other parts of the app use it, but primary config is SCENARIOS
+export const INVOICE_SCENARIOS_OLD = [
   { 
     id: 'rent', 
     label: 'Rent Invoice', 
@@ -130,6 +129,18 @@ export const INVOICE_SCENARIOS = [
       lineItemSuggestion: 'Rent for '
     }
   },
+  { 
+    id: 'freelance', 
+    label: 'Freelance Work', 
+    tag: '[Freelance Work]',
+    fields: {
+      clientNameLabel: 'Client Name',
+      businessNameLabel: 'Freelancer Name',
+      businessAddressLabel: 'Freelancer Address',
+      showBusinessFields: true,
+      showRentPeriod: false,
+    }
+  },
    { 
     id: 'product_sale', 
     label: 'Product Sale', 
@@ -138,18 +149,6 @@ export const INVOICE_SCENARIOS = [
       clientNameLabel: 'Customer Name',
       businessNameLabel: 'Business Name',
       businessAddressLabel: 'Business Address',
-      showBusinessFields: true,
-      showRentPeriod: false,
-    }
-  },
-  { 
-    id: 'service_work', 
-    label: 'Service Work', 
-    tag: '[Service Work]',
-    fields: {
-      clientNameLabel: 'Client Name',
-      businessNameLabel: 'Service Provider Name',
-      businessAddressLabel: 'Service Provider Address',
       showBusinessFields: true,
       showRentPeriod: false,
     }
@@ -168,14 +167,15 @@ export const INVOICE_SCENARIOS = [
   },
 ] as const;
 
-export type OldInvoiceScenarioId = typeof INVOICE_SCENARIOS[number]['id'];
+export type OldInvoiceScenarioId = typeof INVOICE_SCENARIOS_OLD[number]['id'];
 
 export const getOldScenarioConfig = (scenarioId: OldInvoiceScenarioId | null | undefined) => {
-  if (!scenarioId) return INVOICE_SCENARIOS.find(s => s.id === 'custom')?.fields;
-  return INVOICE_SCENARIOS.find(s => s.id === scenarioId)?.fields || INVOICE_SCENARIOS.find(s => s.id === 'custom')?.fields;
+  if (!scenarioId) return INVOICE_SCENARIOS_OLD.find(s => s.id === 'custom')?.fields;
+  return INVOICE_SCENARIOS_OLD.find(s => s.id === scenarioId)?.fields || INVOICE_SCENARIOS_OLD.find(s => s.id === 'custom')?.fields;
 };
 
-export const getScenarioTag = (scenarioId: OldInvoiceScenarioId | null | undefined) => {
+export const getScenarioTag = (scenarioId: ScenarioId | null | undefined) => {
   if (!scenarioId) return '';
-  return INVOICE_SCENARIOS.find(s => s.id === scenarioId)?.tag || '';
-}
+  const scenario = getScenario(scenarioId);
+  return scenario?.tag || '';
+};

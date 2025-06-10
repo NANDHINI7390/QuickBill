@@ -4,7 +4,7 @@
 @tailwind utilities;
 
 body {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'PT Sans', sans-serif; /* Ensuring PT Sans is used */
 }
 
 @layer base {
@@ -39,6 +39,7 @@ body {
 
     --radius: 0.5rem;
 
+    /* Sidebar colors aligned with the new theme */
     --sidebar-background: 220 20% 94%; /* Slightly darker than main bg */
     --sidebar-foreground: 220 10% 25%;
     --sidebar-primary: 145 100% 30%;
@@ -78,6 +79,7 @@ body {
     --input: 220 15% 18%;
     --ring: 145 70% 50%;
     
+    /* Dark Sidebar colors */
     --sidebar-background: 220 15% 10%;
     --sidebar-foreground: 220 25% 92%;
     --sidebar-primary: 145 70% 50%;
@@ -95,14 +97,11 @@ body {
   }
   body {
     @apply bg-background text-foreground;
-    /* Apply #F9FAFB directly for light mode, or use the CSS var */
-    /* background-color: #F9FAFB;  */
   }
   /* Ensure light mode uses #F9FAFB explicitly if var isn't enough */
   html:not(.dark) body {
-     background-color: #F9FAFB; /* --background HSL might slightly differ */
+     background-color: #F9FAFB; /* --background HSL for 220 20% 97% */
   }
-
 }
 
 @media print {
@@ -119,26 +118,25 @@ body {
     width: 100%;
     height: auto;
     margin: 0;
-    padding: 1rem; /* Add some padding for print */
+    padding: 1rem; 
     border: none;
     box-shadow: none;
-    background-color: white; /* Ensure white background for printing */
-    color: black; /* Ensure black text for printing */
+    background-color: white; 
+    color: black;
   }
-  #invoice-preview-area .bg-card { /* Override card background for print */
+  #invoice-preview-area .bg-card { 
     background-color: white !important;
   }
-  #invoice-preview-area .text-card-foreground { /* Override card text color for print */
+  #invoice-preview-area .text-card-foreground { 
     color: black !important;
   }
    #invoice-preview-area .text-muted-foreground {
-    color: #555 !important; /* Lighter gray for muted text */
+    color: #555 !important; 
   }
   #invoice-preview-area .border {
-    border-color: #ccc !important; /* Lighter borders */
+    border-color: #ccc !important; 
   }
-  /* Hide buttons in preview when printing */
-  #invoice-preview-area button {
+  #invoice-preview-area button, #invoice-preview-area a {
     display: none !important;
   }
 }
