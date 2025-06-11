@@ -3,41 +3,44 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { InvoiceFormValues, LineItem } from '@/types/invoice'; // Ensure LineItem is imported if used directly
+import type { InvoiceFormValues, LineItem } from '@/types/invoice';
 import Header from '@/components/header';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Printer, ArrowLeft } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { Loader2, Printer, ArrowLeft, Send, CheckCircle, AlertTriangle, QrCode } from 'lucide-react';
+import { format } from 'date-fns';
 import { getScenario, type Scenario } from '@/config/invoice-scenarios';
-import { Timestamp } from 'firebase/firestore';
+import { useAuth } from '@/contexts/auth-context';
+import { useToast } from '@/hooks/use-toast';
+import { motion, AnimatePresence } from 'framer-motion';
+import { v4 as uuidv4 } from 'uuid';
+import { QRCodeCanvas } from 'qrcode.react';
 
-// Helper to safely format dates that might be Timestamps, strings, or Date objects
+
 const formatDateSafely = (dateInput: any): string => {
   if (!dateInput) return 'N/A';
   try {
     if (dateInput instanceof Timestamp) {
-      return format(dateInput.toDate(), 'PPP');
+      return format(dateInput.toDate(), 'PPP p');
     }
-    // Check if it's already a Date object
     if (dateInput instanceof Date && !isNaN(dateInput.valueOf())) {
-        return format(dateInput, 'PPP');
+        return format(dateInput, 'PPP p');
     }
-    // Handle ISO strings or other string formats that Date constructor can parse
     if (typeof dateInput === 'string') {
       const parsedDate = new Date(dateInput);
       if (!isNaN(parsedDate.valueOf())) {
-        return format(parsedDate, 'PPP');
+        return format(parsedDate, 'PPP p');
       }
     }
-    // Fallback for numbers (timestamps) or other parsable inputs
     const fallbackDate = new Date(dateInput);
     if (!isNaN(fallbackDate.valueOf())) {
-        return format(fallbackDate, 'PPP');
+        return format(fallbackDate, 'PPP p');
     }
     return 'Invalid Date';
   } catch (error) {
@@ -47,7 +50,7 @@ const formatDateSafely = (dateInput: any): string => {
 };
 
 const formatCurrency = (amount: number | undefined | null): string => {
-  if (amount === undefined || amount === null || isNaN(amount)) return '₹0.00'; // Default to ₹0.00 for undefined/null/NaN
+  if (amount === undefined || amount === null || isNaN(amount)) return '₹0.00';
   return amount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
@@ -55,12 +58,25 @@ const formatCurrency = (amount: number | undefined | null): string => {
 export default function InvoicePreviewPage() {
   const params = useParams();
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
   const publicInvoiceId = params.publicInvoiceId as string;
 
   const [invoice, setInvoice] = useState<InvoiceFormValues | null>(null);
   const [scenarioConfig, setScenarioConfig] = useState<Scenario | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [recipientName, setRecipientName] = useState('');
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [isRequestingSignature, setIsRequestingSignature] = useState(false);
+  const [baseUrl, setBaseUrl] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setBaseUrl(window.location.origin);
+    }
+  }, []);
 
   useEffect(() => {
     if (publicInvoiceId) {
@@ -75,6 +91,8 @@ export default function InvoicePreviewPage() {
             const data = docSnap.data() as InvoiceFormValues;
             setInvoice(data);
             setScenarioConfig(getScenario(data.invoiceType));
+            if (data.signerName) setRecipientName(data.signerName);
+            if (data.signerEmail) setRecipientEmail(data.signerEmail);
           } else {
             setError('Invoice not found. Please check the ID or create a new invoice.');
             setInvoice(null);
@@ -93,15 +111,61 @@ export default function InvoicePreviewPage() {
       setLoading(false);
     }
   }, [publicInvoiceId]);
-  
+
   const handlePrint = () => {
-    const printableArea = document.getElementById('invoice-preview-area');
-    if (printableArea) {
-      window.print();
-    }
+    window.print();
   };
 
-  if (loading) {
+  const handleRequestSignature = async () => {
+    if (!invoice || !user || invoice.userId !== user.uid) {
+      toast({ variant: "destructive", title: "Error", description: "You are not authorized to request a signature for this invoice." });
+      return;
+    }
+    if (!recipientName.trim() || !recipientEmail.trim()) {
+      toast({ variant: "destructive", title: "Missing Information", description: "Please enter recipient name and email." });
+      return;
+    }
+    // Basic email validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
+        toast({ variant: "destructive", title: "Invalid Email", description: "Please enter a valid recipient email address." });
+        return;
+    }
+
+    setIsRequestingSignature(true);
+    const signatureToken = uuidv4().substring(0, 10); // Generate a 10-char token
+
+    try {
+      const invoiceRef = doc(db, 'invoices', publicInvoiceId);
+      await updateDoc(invoiceRef, {
+        signatureRequested: true,
+        signatureStatus: "pending",
+        signerName: recipientName.trim(),
+        signerEmail: recipientEmail.trim(),
+        signatureToken: signatureToken,
+        signatureRequestedAt: serverTimestamp(),
+      });
+      setInvoice(prev => prev ? ({
+        ...prev,
+        signatureRequested: true,
+        signatureStatus: "pending",
+        signerName: recipientName.trim(),
+        signerEmail: recipientEmail.trim(),
+        signatureToken: signatureToken,
+      }) : null);
+      toast({ title: "Signature Requested", description: `A signature request has been prepared for ${recipientName}. Share the link or QR code.` });
+    } catch (err) {
+      console.error("Error requesting signature:", err);
+      toast({ variant: "destructive", title: "Request Failed", description: "Could not request signature. Please try again." });
+    } finally {
+      setIsRequestingSignature(false);
+    }
+  };
+  
+  const signingLink = invoice?.signatureToken && baseUrl ? `${baseUrl}/sign/${invoice.signatureToken}` : '';
+  const previewLink = baseUrl && publicInvoiceId ? `${baseUrl}/preview/${publicInvoiceId}` : '';
+
+
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
         <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
@@ -141,22 +205,20 @@ export default function InvoicePreviewPage() {
     );
   }
   
-  // Determine issuer and client details based on scenario
   let issuerDisplayName = 'N/A';
   let clientDisplayName = 'N/A';
-  let issuerAddressDisplay = ''; // Default to empty string
-  let clientAddressDisplay = ''; // Default to empty string
-  let invoiceMainDate = invoice.invoiceDate; // Default to common invoiceDate
+  let issuerAddressDisplay = ''; 
+  let clientAddressDisplay = ''; 
+  let invoiceMainDate = invoice.invoiceDate; 
 
   if (invoice.invoiceType === 'rent') {
     issuerDisplayName = invoice.landlordName || 'Landlord';
     clientDisplayName = invoice.tenantName || 'Tenant';
-    issuerAddressDisplay = invoice.propertyAddress || ''; // Property address acts as issuer address
+    issuerAddressDisplay = invoice.propertyAddress || ''; 
     invoiceMainDate = invoice.paymentDate || invoice.invoiceDate;
   } else if (invoice.invoiceType === 'freelance') {
     issuerDisplayName = invoice.freelancerName || 'Freelancer';
     clientDisplayName = invoice.clientName || 'Client';
-    // For freelance, issuerAddress and clientAddress would come from general fields if filled
     issuerAddressDisplay = invoice.issuerAddress || ''; 
     clientAddressDisplay = invoice.clientAddress || '';
     invoiceMainDate = invoice.invoiceDate;
@@ -183,8 +245,8 @@ export default function InvoicePreviewPage() {
       taxAmount = parseFloat(invoice.tax) || 0;
     }
   }
-  // Use pre-calculated grandTotal if available, otherwise calculate for custom if line items exist
   const finalGrandTotal = invoice.grandTotal !== undefined ? invoice.grandTotal : (scenarioConfig.hasLineItems ? subtotal + taxAmount : 0);
+  const isOwner = user && invoice.userId === user.uid;
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-12 font-body">
@@ -201,7 +263,7 @@ export default function InvoicePreviewPage() {
             </div>
         </div>
 
-        <Card className="shadow-xl border-border bg-card" id="invoice-preview-area">
+        <Card className="shadow-xl border-border bg-card mb-8" id="invoice-preview-area">
           <CardHeader className="bg-muted/30 p-6 rounded-t-lg border-b border-border">
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
               <div>
@@ -252,7 +314,6 @@ export default function InvoicePreviewPage() {
               )}
             </div>
             
-            {/* Scenario Specific Fields Display */}
             {invoice.invoiceType === 'rent' && (
                  <div className="mb-6 p-4 border rounded-md bg-muted/20">
                     <h4 className="font-semibold mb-1 text-neutral-800 dark:text-neutral-100">Rent Details</h4>
@@ -293,7 +354,7 @@ export default function InvoicePreviewPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {invoice.lineItems.map((item: LineItem) => ( // Explicitly type item
+                      {invoice.lineItems.map((item: LineItem) => ( 
                         <TableRow key={item.id}>
                           <TableCell className="font-medium text-left text-foreground">{item.description}</TableCell>
                           <TableCell className="text-center text-foreground">{item.quantity}</TableCell>
@@ -349,6 +410,86 @@ export default function InvoicePreviewPage() {
             <p className="text-xs text-muted-foreground">Thank you! Generated by QuickBill.</p>
           </CardFooter>
         </Card>
+
+        {isOwner && (
+          <AnimatePresence>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Card className="shadow-xl border-border bg-card mt-8">
+                <CardHeader>
+                  <CardTitle className="text-xl font-headline text-primary">Digital Signature</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {!invoice.signatureRequested && (
+                    <form onSubmit={(e) => { e.preventDefault(); handleRequestSignature(); }} className="space-y-4">
+                      <div>
+                        <Label htmlFor="recipientName">Recipient Name</Label>
+                        <Input
+                          id="recipientName"
+                          value={recipientName}
+                          onChange={(e) => setRecipientName(e.target.value)}
+                          placeholder="Enter recipient's full name"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="recipientEmail">Recipient Email</Label>
+                        <Input
+                          id="recipientEmail"
+                          type="email"
+                          value={recipientEmail}
+                          onChange={(e) => setRecipientEmail(e.target.value)}
+                          placeholder="recipient@example.com"
+                          required
+                        />
+                      </div>
+                      <Button type="submit" className="w-full sm:w-auto" disabled={isRequestingSignature}>
+                        {isRequestingSignature ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                        Request Signature
+                      </Button>
+                    </form>
+                  )}
+
+                  {invoice.signatureRequested && invoice.signatureStatus === 'pending' && (
+                    <div className="p-4 bg-yellow-50 border border-yellow-300 rounded-md text-yellow-700 flex items-center gap-3">
+                      <AlertTriangle className="h-5 w-5" />
+                      <div>
+                        <p className="font-semibold">Awaiting signature from {invoice.signerName || 'recipient'}.</p>
+                        <p className="text-sm">Share this link or QR code with them: <a href={signingLink} target="_blank" rel="noopener noreferrer" className="underline hover:text-yellow-800">{signingLink}</a></p>
+                        {signingLink && (
+                          <div className="mt-3 p-2 bg-white inline-block rounded-md shadow">
+                            <QRCodeCanvas value={signingLink} size={128} bgColor="#ffffff" fgColor="#000000" level="L" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {invoice.signatureStatus === 'signed' && (
+                     <div className="p-4 bg-green-50 border border-green-300 rounded-md text-green-700 flex items-start gap-3">
+                      <CheckCircle className="h-5 w-5 mt-1 flex-shrink-0" />
+                      <div>
+                        <p className="font-semibold">Invoice signed by {invoice.signerName || 'recipient'} on {formatDateSafely(invoice.signedAt)}.</p>
+                        {previewLink && (
+                           <div className="mt-3">
+                             <p className="text-sm mb-1">QR Code for this signed invoice preview:</p>
+                             <div className="p-2 bg-white inline-block rounded-md shadow">
+                               <QRCodeCanvas value={previewLink} size={100} bgColor="#ffffff" fgColor="#000000" level="L" />
+                             </div>
+                           </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          </AnimatePresence>
+        )}
       </main>
     </div>
   );
