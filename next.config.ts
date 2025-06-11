@@ -1,3 +1,4 @@
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -17,6 +18,20 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
+  },
+  async headers() {
+    return [
+      {
+        // Apply this header to all routes
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Origin-Agent-Cluster',
+            value: '?1', // Opt-in to origin-keyed agent clusters
+          },
+        ],
+      },
+    ];
   },
 };
 
