@@ -1,71 +1,48 @@
 
-import type { ScenarioId } from '@/config/invoice-scenarios';
 import type { Timestamp } from 'firebase/firestore';
 
-export interface LineItem {
-  id: string;
-  description: string;
-  quantity: number;
-  price: number;
+export interface RentInvoiceDetails {
+  // Fields for the rent invoice creation form
+  propertyAddress: string;
+  rentAmount: number;
+  rentPeriod: string; // e.g., "July 2024"
+  tenantName: string;
+  landlordName: string;
+  landlordMobileNumber: string; // For sending the verification link
 }
 
-export interface InvoiceFormValues {
-  // Common fields
-  id: string; 
-  publicInvoiceId?: string; 
-  invoiceType: ScenarioId; 
-  invoiceNumber?: string; 
-  userId?: string; 
-  createdAt?: Timestamp | Date | any; 
-  updatedAt?: Timestamp | Date | any; 
+export interface InvoiceFormValues extends RentInvoiceDetails {
+  id: string; // Internal UUID for the document in users collection (if saved by user)
+  publicInvoiceId: string; // Publicly shareable/referenceable ID (used as doc ID in top-level 'invoices' collection)
   
-  // Party details (general terms, labels will be dynamic)
-  issuerName?: string; // Covers Landlord, Freelancer, Seller, Company for Custom
-  issuerAddress?: string; // Not always needed, e.g., for simple product sale if sellerName is enough
-  clientName?: string; // Covers Tenant, Client, Buyer
-  clientAddress?: string; // Not always needed
+  userId?: string; // Creator's Firebase UID, if they are logged in
+  invoiceNumber?: string; // Auto-generated or user-input
+  invoiceDate: Date | Timestamp; // Date of invoice creation or effective date
+  
+  // Signature Flow Fields
+  signatureToken?: string; // Unique token for the signing link
+  signatureRequestedAt?: Timestamp; // When the signature request was initiated (effectively invoice creation time)
+  
+  // Statuses: "awaiting_landlord_signature", "signed_by_landlord", "expired", "declined"
+  signatureStatus: 'awaiting_landlord_signature' | 'signed_by_landlord' | 'expired' | 'declined';
+  
+  signedByLandlordAt?: Timestamp; // When the landlord signed
+  landlordSignatureDataUrl?: string; // The actual signature image as a Data URL
+  // landlordMobileNumber is already in RentInvoiceDetails
 
-  // Rent Scenario
-  landlordName?: string;
-  tenantName?: string;
-  propertyAddress?: string;
-  rentAmount?: number;
-  paymentDate?: Date;
-  rentDuration?: string; 
+  // Timestamps
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 
-  // Freelance Work Scenario
-  freelancerName?: string;
-  // clientName is shared
-  serviceDescription?: string;
-  rate?: number; 
-  hoursWorked?: number;
-  // totalAmount for freelance might be calculated and stored in grandTotal
-
-  // Product Sale Scenario
-  sellerName?: string;
-  buyerName?: string;
-  productDescription?: string; 
-  quantity?: number; 
-  unitPrice?: number; 
-  // total for product sale might be calculated and stored in grandTotal
-  paymentMethod?: string;
-  saleDate?: Date;
-
-  // Custom Invoice / General Use
-  invoiceDate?: Date; // Common date field, can be paymentDate or saleDate for specific scenarios
-  lineItems?: LineItem[];
-  tax?: string; 
-  grandTotal?: number; // Calculated or set
+  // Optional notes
   invoiceNotes?: string;
-
-  // For Smart Fill / AI (keeping for potential future use with new flow)
-  invoiceText?: string; 
-
-  // Fields for signature flow (to be added later, good to have in type)
-  signatureRequested?: boolean;
-  signatureStatus?: 'pending' | 'signed_by_issuer' | 'signed_by_client' | 'completed' | 'declined';
-  signerEmail?: string; // Email of the party to sign
-  signedAt?: Timestamp | Date;
-  signerName?: string;
-  signerMetadata?: Record<string, any>; // To store timestamp, IP (server-side), device info (basic)
 }
+
+// This type will be used for documents in the top-level `invoices` collection
+// and potentially in `users/{userId}/invoices` if a user is logged in.
+export type StoredInvoice = InvoiceFormValues;
+
+// Note: The distinction between InvoiceFormValues for the form and StoredInvoice for DB might be minimal
+// for this specific flow, but good to keep in mind for future evolutions.
+// For now, InvoiceFormValues will cover both the creation payload and the stored structure.
+

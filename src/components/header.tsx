@@ -3,7 +3,7 @@
 
 import type { FC } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAuth } from '@/contexts/auth-context';
@@ -20,18 +20,14 @@ const getInitials = (name?: string | null) => {
   if (names.length > 1) {
     return names[0][0] + names[names.length - 1][0];
   }
-  return name.substring(0, 2);
+  return name.substring(0, 2).toUpperCase();
 };
 
-interface HeaderProps {
-  onBackToScenarioSelection?: () => void;
-  currentScenarioLabel?: string;
-}
-
-const Header: FC<HeaderProps> = ({ onBackToScenarioSelection, currentScenarioLabel }) => {
+const Header: FC = () => {
   const { user, loading } = useAuth();
   const { theme, setTheme } = useTheme();
   const router = useRouter();
+  const pathname = usePathname();
   const { toast } = useToast();
 
   const handleLogout = async () => {
@@ -48,12 +44,15 @@ const Header: FC<HeaderProps> = ({ onBackToScenarioSelection, currentScenarioLab
     setTheme(theme === 'light' ? 'dark' : 'light');
   };
 
+  // Determine if back button should be shown (e.g. not on home, login, signup)
+  const showBackButton = !['/', '/login', '/signup', '/new-invoice'].includes(pathname) && (pathname.startsWith('/preview/') || pathname.startsWith('/sign/'));
+
   return (
     <header className="py-4 sm:py-6 border-b">
       <div className="max-w-7xl mx-auto px-4 sm:px-0 flex items-center justify-between">
         <div className="flex items-center">
-          {onBackToScenarioSelection && (
-            <Button variant="ghost" size="icon" onClick={onBackToScenarioSelection} className="mr-2 sm:mr-4" aria-label="Back to scenario selection">
+          {showBackButton && (
+            <Button variant="ghost" size="icon" onClick={() => router.back()} className="mr-2 sm:mr-4" aria-label="Go back">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           )}
@@ -63,7 +62,7 @@ const Header: FC<HeaderProps> = ({ onBackToScenarioSelection, currentScenarioLab
               <h1 className="text-2xl sm:text-4xl font-headline font-bold text-primary group-hover:text-primary/90 transition-colors">
                 QuickBill
               </h1>
-              {currentScenarioLabel && <span className="text-xs text-muted-foreground sm:text-sm">{currentScenarioLabel}</span>}
+               <span className="text-xs text-muted-foreground sm:text-sm">Secure Rent Invoicing</span>
             </div>
           </Link>
         </div>
@@ -81,7 +80,7 @@ const Header: FC<HeaderProps> = ({ onBackToScenarioSelection, currentScenarioLab
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           ) : user ? (
             <>
-              <Button variant="ghost" asChild className="text-sm sm:text-base hidden sm:inline-flex">
+              <Button variant="ghost" asChild className="text-sm sm:text-base hidden sm:inline-flex hover:bg-accent hover:text-accent-foreground">
                 <Link href="/my-invoices">
                   <ListChecks className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" /> My Invoices
                 </Link>
@@ -131,12 +130,12 @@ const Header: FC<HeaderProps> = ({ onBackToScenarioSelection, currentScenarioLab
             </>
           ) : (
             <>
-              <Button variant="ghost" asChild className="text-sm sm:text-base">
+              <Button variant="ghost" asChild className="text-sm sm:text-base hover:bg-accent hover:text-accent-foreground">
                 <Link href="/login">
                   <UserCircle className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" /> Login
                 </Link>
               </Button>
-              <Button asChild className="text-sm sm:text-base">
+              <Button asChild className="text-sm sm:text-base bg-primary hover:bg-primary/90">
                 <Link href="/signup">Sign Up</Link>
               </Button>
             </>

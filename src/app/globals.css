@@ -4,90 +4,97 @@
 @tailwind utilities;
 
 body {
-  font-family: 'PT Sans', sans-serif; /* Ensuring PT Sans is used */
+  font-family: 'PT Sans', sans-serif;
 }
 
 @layer base {
   :root {
-    --background: 220 20% 97%; /* Light Neutral Gray - #F9FAFB */
-    --foreground: 220 10% 25%; /* Dark Neutral Gray */
+    /* New Palette: Trustworthy + Friendly (Green Primary) */
+    --background: 220 20% 98%; /* Light Gray-Blue for #F9FAFB */
+    --foreground: 220 13% 15%; /* Dark Gray for #1F2937 */
 
-    --card: 0 0% 100%; /* White cards */
-    --card-foreground: 220 10% 20%;
+    --card: 0 0% 100%; /* White */
+    --card-foreground: 220 13% 15%; /* Dark Gray for text on cards */
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 10% 20%;
+    --popover: 0 0% 100%; /* White */
+    --popover-foreground: 220 13% 15%;
 
-    --primary: 145 100% 30%; /* Green - #009B4D */
-    --primary-foreground: 0 0% 100%; /* White */
+    --primary: 150 100% 30%; /* Green - #009B4D */
+    --primary-foreground: 0 0% 100%; /* White for text on primary */
 
-    --secondary: 145 60% 90%; /* Lighter Green */
-    --secondary-foreground: 145 100% 20%;
+    --secondary: 221 83% 53%; /* Blue - #2563EB */
+    --secondary-foreground: 0 0% 100%; /* White for text on secondary */
 
-    --muted: 220 20% 90%; /* Light gray for muted elements */
-    --muted-foreground: 220 10% 45%; /* Darker gray for muted text */
+    --muted: 220 14% 90%; /* Lighter gray for muted elements */
+    --muted-foreground: 220 9% 45%; /* Darker gray for muted text */
 
-    --accent: 145 80% 40%; /* Slightly darker/desaturated green for accents if needed */
+    --accent: 150 100% 40%; /* Slightly lighter or vibrant Green for accents */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 86% 59%; /* Red - #EF4444 */
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 220 20% 88%; /* Neutral Gray for borders */
-    --input: 220 30% 96%; 
-    --ring: 145 100% 30%; /* Green for focus rings */
+    --warning: 39 96% 52%; /* Amber - #F59E0B */
+    --warning-foreground: 220 13% 10%; /* Dark text for warning */
+
+    --border: 220 13% 88%; /* Neutral Gray for borders */
+    --input: 220 13% 94%;
+    --ring: 150 100% 30%; /* Green for focus rings */
 
     --radius: 0.5rem;
 
-    /* Sidebar colors aligned with the new theme */
-    --sidebar-background: 220 20% 94%; /* Slightly darker than main bg */
+    /* Sidebar colors (can keep or adjust based on overall theme) */
+    --sidebar-background: 220 20% 94%;
     --sidebar-foreground: 220 10% 25%;
-    --sidebar-primary: 145 100% 30%;
+    --sidebar-primary: 150 100% 30%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 145 60% 85%;
-    --sidebar-accent-foreground: 145 100% 20%;
+    --sidebar-accent: 150 60% 85%;
+    --sidebar-accent-foreground: 150 100% 20%;
     --sidebar-border: 220 20% 85%;
-    --sidebar-ring: 145 100% 30%;
+    --sidebar-ring: 150 100% 30%;
   }
 
   .dark {
-    --background: 220 15% 12%; /* Very dark gray */
-    --foreground: 220 25% 90%; /* Light cool gray */
+    --background: 220 15% 10%; /* Very Dark Gray-Blue */
+    --foreground: 220 25% 92%; /* Light Cool Gray */
 
-    --card: 220 15% 15%; /* Dark card */
-    --card-foreground: 220 25% 90%;
+    --card: 220 15% 13%; /* Slightly darker card */
+    --card-foreground: 220 25% 92%;
 
-    --popover: 220 15% 15%;
-    --popover-foreground: 220 25% 90%;
+    --popover: 220 15% 13%;
+    --popover-foreground: 220 25% 92%;
 
-    --primary: 145 70% 50%; /* Brighter Green for dark mode */
-    --primary-foreground: 220 10% 10%; /* Dark for on-green text */
+    --primary: 150 70% 45%; /* Brighter Green for dark mode */
+    --primary-foreground: 0 0% 100%; /* White text on primary */
 
-    --secondary: 145 40% 25%; /* Darker muted Green */
-    --secondary-foreground: 145 70% 85%;
+    --secondary: 221 70% 60%; /* Brighter Blue for dark mode */
+    --secondary-foreground: 0 0% 100%;
 
     --muted: 220 15% 20%; /* Dark gray */
     --muted-foreground: 220 15% 65%;
 
-    --accent: 145 70% 55%; /* Brighter Green for accents */
-    --accent-foreground: 220 10% 5%;
+    --accent: 150 70% 50%; /* Brighter Green for accents */
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 70% 45%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 70% 55%; /* Brighter Red */
+    --destructive-foreground: 0 0% 100%;
+
+    --warning: 39 80% 55%; /* Brighter Amber */
+    --warning-foreground: 220 13% 10%; /* Dark text for warning */
 
     --border: 220 15% 25%; /* Darker gray borders */
     --input: 220 15% 18%;
-    --ring: 145 70% 50%;
-    
+    --ring: 150 70% 45%;
+
     /* Dark Sidebar colors */
-    --sidebar-background: 220 15% 10%;
-    --sidebar-foreground: 220 25% 92%;
-    --sidebar-primary: 145 70% 50%;
-    --sidebar-primary-foreground: 0 0% 10%;
-    --sidebar-accent: 145 35% 22%;
-    --sidebar-accent-foreground: 145 70% 75%;
-    --sidebar-border: 220 15% 20%;
-    --sidebar-ring: 145 70% 50%;
+    --sidebar-background: 220 15% 8%;
+    --sidebar-foreground: 220 25% 94%;
+    --sidebar-primary: 150 70% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 150 35% 20%;
+    --sidebar-accent-foreground: 150 70% 70%;
+    --sidebar-border: 220 15% 18%;
+    --sidebar-ring: 150 70% 45%;
   }
 }
 
@@ -98,9 +105,8 @@ body {
   body {
     @apply bg-background text-foreground;
   }
-  /* Ensure light mode uses #F9FAFB explicitly if var isn't enough */
   html:not(.dark) body {
-     background-color: #F9FAFB; /* --background HSL for 220 20% 97% */
+     background-color: hsl(var(--background)); /* #F9FAFB */
   }
 }
 
@@ -118,25 +124,51 @@ body {
     width: 100%;
     height: auto;
     margin: 0;
-    padding: 1rem; 
+    padding: 1rem;
     border: none;
     box-shadow: none;
-    background-color: white; 
-    color: black;
-  }
-  #invoice-preview-area .bg-card { 
     background-color: white !important;
-  }
-  #invoice-preview-area .text-card-foreground { 
     color: black !important;
   }
-   #invoice-preview-area .text-muted-foreground {
-    color: #555 !important; 
+  #invoice-preview-area .bg-card,
+  #invoice-preview-area .bg-muted\/30,
+  #invoice-preview-area .bg-muted\/20 {
+    background-color: white !important;
   }
-  #invoice-preview-area .border {
-    border-color: #ccc !important; 
+  #invoice-preview-area .text-card-foreground,
+  #invoice-preview-area .text-foreground,
+  #invoice-preview-area .text-primary,
+  #invoice-preview-area .text-neutral-800,
+  #invoice-preview-area .dark\:text-neutral-100 {
+    color: black !important;
   }
-  #invoice-preview-area button, #invoice-preview-area a {
+   #invoice-preview-area .text-muted-foreground,
+   #invoice-preview-area .text-neutral-700,
+   #invoice-preview-area .dark\:text-neutral-300 {
+    color: #555 !important;
+  }
+  #invoice-preview-area .border,
+  #invoice-preview-area .border-b,
+  #invoice-preview-area .border-t,
+  #invoice-preview-area .border-border {
+    border-color: #ccc !important;
+  }
+  #invoice-preview-area button, #invoice-preview-area a, #invoice-preview-area input, #invoice-preview-area [data-signature-request-ui] {
     display: none !important;
+  }
+  #invoice-preview-area [data-signature-display] {
+    display: block !important; /* Ensure signature image is visible */
+  }
+  #invoice-preview-area img[data-signature-image] {
+    max-width: 200px !important;
+    height: auto !important;
+    border: 1px solid #ccc !important;
+  }
+  #invoice-preview-area [data-verified-badge] {
+    background-color: #e6ffee !important;
+    color: #006600 !important;
+    border: 1px solid #009B4D !important;
+    padding: 2px 6px !important;
+    font-size: 0.7rem !important;
   }
 }
