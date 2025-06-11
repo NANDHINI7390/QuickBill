@@ -10,7 +10,7 @@ import Header from '@/components/header';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Printer, ArrowLeft, Share2, ShieldCheck, ShieldAlert, Copy, CheckCircle, Bell, Mail } from 'lucide-react';
+import { Loader2, Printer, ArrowLeft, Share2, ShieldCheck, ShieldAlert, Copy, CheckCircle, Bell, Mail, MessageSquareText } from 'lucide-react'; // Added MessageSquareText
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
@@ -105,7 +105,6 @@ export default function InvoicePreviewPage() {
     window.print();
   };
 
-  const signingLink = invoice?.signatureToken && baseUrl ? `${baseUrl}/sign/${invoice.signatureToken}` : '';
   const previewLink = baseUrl && publicInvoiceId ? `${baseUrl}/preview/${publicInvoiceId}` : '';
 
   const copyToClipboard = (text: string, type: string) => {
@@ -116,18 +115,6 @@ export default function InvoicePreviewPage() {
     });
   };
   
-  const handleShare = (platform: 'whatsapp' | 'email') => {
-    if (!invoice || !signingLink) return;
-    const messageBody = `Please review and sign the rent invoice for ${invoice.propertyAddress} (Tenant: ${invoice.tenantName}, Landlord: ${invoice.landlordName}): ${signingLink}`;
-    const subject = `Rent Invoice for ${invoice.propertyAddress} - Action Required`;
-
-    if (platform === 'whatsapp') {
-      window.open(`whatsapp://send?text=${encodeURIComponent(messageBody)}`, '_blank');
-    } else if (platform === 'email') {
-      window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(messageBody)}`, '_blank');
-    }
-  };
-
   const handleSaveNotificationPreferences = async () => {
     if (!invoice || !publicInvoiceId) return;
     if (notifyTenant && !tenantEmailForNotification) {
@@ -193,8 +180,9 @@ export default function InvoicePreviewPage() {
   }
   
   const isCreator = user && invoice.userId === user.uid;
-  const showSignatureRequestSection = isCreator || !invoice.userId; // Show if creator or if invoice has no specific creator (publicly created link)
-  // For tenant notification section, we might assume the initiator (userId) is the tenant or acting on their behalf.
+  // Show this section if the current user is the creator, or if the invoice doesn't have a specific user ID (e.g., created anonymously)
+  // and the signature is pending.
+  const showSignatureStatusSection = (isCreator || !invoice.userId) && invoice.signatureStatus === 'awaiting_landlord_signature';
   const showTenantNotificationSection = (isCreator && invoice.signatureStatus === 'awaiting_landlord_signature');
 
 
@@ -203,8 +191,8 @@ export default function InvoicePreviewPage() {
       <Header />
       <main className="max-w-3xl mx-auto py-8 px-2 sm:px-4">
         <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-            <Button variant="outline" onClick={() => router.push('/my-invoices')} className="transition-colors duration-300 ease-in-out">
-                <ArrowLeft className="mr-2 h-4 w-4" /> My Invoices
+            <Button variant="outline" onClick={() => router.push(user ? '/my-invoices' : '/')} className="transition-colors duration-300 ease-in-out">
+                <ArrowLeft className="mr-2 h-4 w-4" /> {user ? "My Invoices" : "Back to Home"}
             </Button>
             <div className="flex gap-2">
                 <Button onClick={handlePrint} className="bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-300 ease-in-out">
@@ -222,38 +210,27 @@ export default function InvoicePreviewPage() {
             className="mb-8"
             data-signature-request-ui 
         >
-            {invoice.signatureStatus === 'awaiting_landlord_signature' && showSignatureRequestSection && (
+            {showSignatureStatusSection && (
             <Card className="shadow-xl border-warning bg-yellow-50 dark:bg-yellow-900/30">
                 <CardHeader>
                     <CardTitle className="text-xl font-headline text-yellow-700 dark:text-yellow-200 flex items-center gap-2">
                         <ShieldAlert className="h-6 w-6 text-warning" /> Awaiting Landlord&apos;s Signature
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3">
                     <p className="text-yellow-700 dark:text-yellow-300">
-                        This invoice requires the landlord, <strong>{invoice.landlordName}</strong> (Mobile: {maskMobileNumber(invoice.landlordMobileNumber)}), to digitally sign it.
+                        This invoice requires landlord <strong>{invoice.landlordName}</strong> to digitally sign it.
                     </p>
-                    <p className="font-medium text-yellow-800 dark:text-yellow-100">Share this secure signing link with the landlord:</p>
-                    <div className="flex flex-col sm:flex-row items-center gap-2 p-2 border rounded-md bg-background dark:bg-muted">
-                        <span className="text-sm break-all text-primary font-mono">{signingLink}</span>
-                        <Button variant="ghost" size="icon" onClick={() => copyToClipboard(signingLink, 'Signing Link')} title="Copy link">
-                            <Copy className="h-4 w-4" />
-                        </Button>
+                    <div className="flex items-center gap-2 p-3 border border-dashed border-yellow-400 rounded-md bg-yellow-100 dark:bg-yellow-800/50">
+                        <MessageSquareText className="h-6 w-6 text-yellow-700 dark:text-yellow-200 shrink-0" />
+                        <p className="text-sm text-yellow-800 dark:text-yellow-100">
+                            A secure signing link has been (or will be shortly) sent via SMS/WhatsApp to the landlord&apos;s mobile number: <strong>{maskMobileNumber(invoice.landlordMobileNumber)}</strong>.
+                        </p>
                     </div>
-                    <div className="flex gap-2 mt-2">
-                        <Button variant="outline" onClick={() => handleShare('whatsapp')} className="bg-secondary hover:bg-secondary/90 text-secondary-foreground">
-                            <Share2 className="mr-2 h-4 w-4" /> Share via WhatsApp
-                        </Button>
-                        <Button variant="outline" onClick={() => handleShare('email')} className="bg-secondary hover:bg-secondary/90 text-secondary-foreground">
-                            <Share2 className="mr-2 h-4 w-4" /> Share via Email
-                        </Button>
-                    </div>
-                    {signingLink && (
-                        <div className="mt-3 p-3 bg-white inline-block rounded-md shadow border">
-                            <p className="text-xs text-center mb-1 text-muted-foreground">Scan QR for Signing Link</p>
-                            <QRCodeCanvas value={signingLink} size={128} bgColor="#ffffff" fgColor="#000000" level="L" />
-                        </div>
-                    )}
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                        The landlord needs to open this link to review and sign the invoice.
+                        (Actual SMS/WhatsApp sending needs backend integration.)
+                    </p>
                 </CardContent>
             </Card>
             )}
@@ -298,7 +275,7 @@ export default function InvoicePreviewPage() {
                            <Bell className="h-5 w-5 text-primary" /> Get Notified When Signed
                         </CardTitle>
                         <CardDescription>
-                            Opt-in to receive an email once the landlord signs this invoice.
+                            Opt-in to receive an email once the landlord signs this invoice. (Email sending requires backend setup).
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
