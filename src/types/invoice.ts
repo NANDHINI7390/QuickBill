@@ -28,7 +28,12 @@ export interface InvoiceFormValues extends RentInvoiceDetails {
   
   signedByLandlordAt?: Timestamp; // When the landlord signed
   landlordSignatureDataUrl?: string; // The actual signature image as a Data URL
-  // landlordMobileNumber is already in RentInvoiceDetails
+  
+  // Tenant Notification Preferences
+  notifyTenant?: boolean;
+  tenantEmailForNotification?: string;
+  // tenantWhatsAppForNotification?: string; // Future enhancement
+  // tenantSmsForNotification?: string; // Future enhancement
 
   // Timestamps
   createdAt: Timestamp;
@@ -38,11 +43,4 @@ export interface InvoiceFormValues extends RentInvoiceDetails {
   invoiceNotes?: string;
 }
 
-// This type will be used for documents in the top-level `invoices` collection
-// and potentially in `users/{userId}/invoices` if a user is logged in.
 export type StoredInvoice = InvoiceFormValues;
-
-// Note: The distinction between InvoiceFormValues for the form and StoredInvoice for DB might be minimal
-// for this specific flow, but good to keep in mind for future evolutions.
-// For now, InvoiceFormValues will cover both the creation payload and the stored structure.
-

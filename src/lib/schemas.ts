@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 
 // Basic mobile number validation (e.g., for India, 10 digits, can be expanded)
-// This is a very basic regex, consider using a library for more robust validation
 const mobileRegex = /^[6-9]\d{9}$/; // Example for Indian mobile numbers
 
 export const rentInvoiceFormSchema = z.object({
@@ -32,13 +31,13 @@ export const rentInvoiceFormSchema = z.object({
   signedByLandlordAt: z.custom<any>().optional(), // Firestore Timestamp
   landlordSignatureDataUrl: z.string().optional(),
   
+  // Tenant Notification Preferences - not part of the main form, but part of the schema for storage
+  notifyTenant: z.boolean().optional(),
+  tenantEmailForNotification: z.string().email("Invalid email address.").optional().or(z.literal('')),
+
+
   createdAt: z.custom<any>().optional(), // Firestore Timestamp
   updatedAt: z.custom<any>().optional(), // Firestore Timestamp
 });
 
 export type RentInvoiceFormValues = z.infer<typeof rentInvoiceFormSchema>;
-
-// Note: The Zod schema primarily validates the input form.
-// Other fields like publicInvoiceId, invoiceNumber, signatureToken, timestamps etc.
-// will be generated/set programmatically during the workflow.
-// The `InvoiceFormValues` type from `src/types/invoice.ts` serves as the comprehensive type for stored data.

@@ -3,19 +3,22 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, Timestamp, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { StoredInvoice } from '@/types/invoice';
 import Header from '@/components/header';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Printer, ArrowLeft, Share2, ShieldCheck, ShieldAlert, Copy, CheckCircle } from 'lucide-react';
+import { Loader2, Printer, ArrowLeft, Share2, ShieldCheck, ShieldAlert, Copy, CheckCircle, Bell, Mail } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeCanvas } from 'qrcode.react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const formatDateSafely = (dateInput: any, includeTime = false): string => {
   if (!dateInput) return 'N/A';
@@ -55,6 +58,10 @@ export default function InvoicePreviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [baseUrl, setBaseUrl] = useState('');
 
+  const [notifyTenant, setNotifyTenant] = useState(false);
+  const [tenantEmailForNotification, setTenantEmailForNotification] = useState('');
+  const [isSavingPreferences, setIsSavingPreferences] = useState(false);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setBaseUrl(window.location.origin);
@@ -71,7 +78,10 @@ export default function InvoicePreviewPage() {
           const docSnap = await getDoc(invoiceRef);
 
           if (docSnap.exists()) {
-            setInvoice(docSnap.data() as StoredInvoice);
+            const invoiceData = docSnap.data() as StoredInvoice;
+            setInvoice(invoiceData);
+            setNotifyTenant(invoiceData.notifyTenant || false);
+            setTenantEmailForNotification(invoiceData.tenantEmailForNotification || '');
           } else {
             setError('Invoice not found. Please check the ID or create a new invoice.');
             setInvoice(null);
@@ -108,7 +118,7 @@ export default function InvoicePreviewPage() {
   
   const handleShare = (platform: 'whatsapp' | 'email') => {
     if (!invoice || !signingLink) return;
-    const messageBody = `Please review and sign the rent invoice: ${signingLink}`;
+    const messageBody = `Please review and sign the rent invoice for ${invoice.propertyAddress} (Tenant: ${invoice.tenantName}, Landlord: ${invoice.landlordName}): ${signingLink}`;
     const subject = `Rent Invoice for ${invoice.propertyAddress} - Action Required`;
 
     if (platform === 'whatsapp') {
@@ -118,6 +128,29 @@ export default function InvoicePreviewPage() {
     }
   };
 
+  const handleSaveNotificationPreferences = async () => {
+    if (!invoice || !publicInvoiceId) return;
+    if (notifyTenant && !tenantEmailForNotification) {
+        toast({ variant: "destructive", title: "Email Required", description: "Please enter an email address for notifications." });
+        return;
+    }
+    setIsSavingPreferences(true);
+    try {
+        const invoiceRef = doc(db, 'invoices', publicInvoiceId);
+        await updateDoc(invoiceRef, {
+            notifyTenant: notifyTenant,
+            tenantEmailForNotification: notifyTenant ? tenantEmailForNotification : '',
+            updatedAt: serverTimestamp()
+        });
+        setInvoice(prev => prev ? {...prev, notifyTenant, tenantEmailForNotification: notifyTenant ? tenantEmailForNotification : '' } : null);
+        toast({ title: "Preferences Saved", description: "Notification settings have been updated."});
+    } catch (error) {
+        console.error("Error saving notification preferences:", error);
+        toast({ variant: "destructive", title: "Save Failed", description: "Could not save notification preferences."});
+    } finally {
+        setIsSavingPreferences(false);
+    }
+  };
 
   if (authLoading || loading) {
     return (
@@ -160,14 +193,18 @@ export default function InvoicePreviewPage() {
   }
   
   const isCreator = user && invoice.userId === user.uid;
+  const showSignatureRequestSection = isCreator || !invoice.userId; // Show if creator or if invoice has no specific creator (publicly created link)
+  // For tenant notification section, we might assume the initiator (userId) is the tenant or acting on their behalf.
+  const showTenantNotificationSection = (isCreator && invoice.signatureStatus === 'awaiting_landlord_signature');
+
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-12 font-body">
       <Header />
       <main className="max-w-3xl mx-auto py-8 px-2 sm:px-4">
         <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-            <Button variant="outline" onClick={() => router.push('/new-invoice')} className="transition-colors duration-300 ease-in-out">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Create Another Rent Invoice
+            <Button variant="outline" onClick={() => router.push('/my-invoices')} className="transition-colors duration-300 ease-in-out">
+                <ArrowLeft className="mr-2 h-4 w-4" /> My Invoices
             </Button>
             <div className="flex gap-2">
                 <Button onClick={handlePrint} className="bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-300 ease-in-out">
@@ -185,18 +222,18 @@ export default function InvoicePreviewPage() {
             className="mb-8"
             data-signature-request-ui 
         >
-            {invoice.signatureStatus === 'awaiting_landlord_signature' && (
+            {invoice.signatureStatus === 'awaiting_landlord_signature' && showSignatureRequestSection && (
             <Card className="shadow-xl border-warning bg-yellow-50 dark:bg-yellow-900/30">
                 <CardHeader>
-                    <CardTitle className="text-xl font-headline text-warning-foreground flex items-center gap-2">
+                    <CardTitle className="text-xl font-headline text-yellow-700 dark:text-yellow-200 flex items-center gap-2">
                         <ShieldAlert className="h-6 w-6 text-warning" /> Awaiting Landlord&apos;s Signature
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <p className="text-muted-foreground">
+                    <p className="text-yellow-700 dark:text-yellow-300">
                         This invoice requires the landlord, <strong>{invoice.landlordName}</strong> (Mobile: {maskMobileNumber(invoice.landlordMobileNumber)}), to digitally sign it.
                     </p>
-                    <p className="font-medium">Share this secure signing link with the landlord:</p>
+                    <p className="font-medium text-yellow-800 dark:text-yellow-100">Share this secure signing link with the landlord:</p>
                     <div className="flex flex-col sm:flex-row items-center gap-2 p-2 border rounded-md bg-background dark:bg-muted">
                         <span className="text-sm break-all text-primary font-mono">{signingLink}</span>
                         <Button variant="ghost" size="icon" onClick={() => copyToClipboard(signingLink, 'Signing Link')} title="Copy link">
@@ -228,10 +265,10 @@ export default function InvoicePreviewPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                        <p className="text-muted-foreground">
+                        <p className="text-green-700 dark:text-green-200">
                             This invoice was digitally signed by landlord <strong>{invoice.landlordName}</strong> on {formatDateSafely(invoice.signedByLandlordAt, true)}.
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-green-600 dark:text-green-300">
                             Verification via Mobile: {maskMobileNumber(invoice.landlordMobileNumber)}
                         </p>
                         {previewLink && (
@@ -245,6 +282,73 @@ export default function InvoicePreviewPage() {
             )}
         </motion.div>
         </AnimatePresence>
+
+        {showTenantNotificationSection && (
+            <AnimatePresence>
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+                className="mb-8"
+            >
+                <Card className="shadow-lg border-border bg-card">
+                    <CardHeader>
+                        <CardTitle className="text-lg font-headline text-foreground flex items-center gap-2">
+                           <Bell className="h-5 w-5 text-primary" /> Get Notified When Signed
+                        </CardTitle>
+                        <CardDescription>
+                            Opt-in to receive an email once the landlord signs this invoice.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center space-x-2">
+                            <Checkbox 
+                                id="notifyTenantCheckbox" 
+                                checked={notifyTenant} 
+                                onCheckedChange={(checked) => setNotifyTenant(Boolean(checked))}
+                            />
+                            <Label htmlFor="notifyTenantCheckbox" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                Email me when the invoice is signed by the landlord.
+                            </Label>
+                        </div>
+                        {notifyTenant && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="space-y-1.5 overflow-hidden"
+                            >
+                                <Label htmlFor="tenantEmailForNotification">Your Email Address</Label>
+                                <div className="flex items-center gap-2">
+                                   <Mail className="h-5 w-5 text-muted-foreground" />
+                                   <Input 
+                                        id="tenantEmailForNotification" 
+                                        type="email" 
+                                        placeholder="you@example.com"
+                                        value={tenantEmailForNotification}
+                                        onChange={(e) => setTenantEmailForNotification(e.target.value)}
+                                        className="text-sm"
+                                    />
+                                </div>
+                                 {notifyTenant && !tenantEmailForNotification && <p className="text-xs text-destructive">Email is required for notifications.</p>}
+                            </motion.div>
+                        )}
+                    </CardContent>
+                    <CardFooter>
+                        <Button 
+                            onClick={handleSaveNotificationPreferences} 
+                            disabled={isSavingPreferences || (notifyTenant && !tenantEmailForNotification)}
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                        >
+                            {isSavingPreferences ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                            Save Notification Preferences
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </motion.div>
+            </AnimatePresence>
+        )}
 
 
         <Card className="shadow-xl border-border bg-card" id="invoice-preview-area">
@@ -305,18 +409,22 @@ export default function InvoicePreviewPage() {
                 </>
             )}
 
-            {invoice.signatureStatus === 'signed_by_landlord' && invoice.landlordSignatureDataUrl && (
+            {invoice.signatureStatus === 'signed_by_landlord' && (
               <>
                 <Separator className="my-8" />
                 <div data-signature-display>
                   <h3 className="text-lg font-semibold text-foreground mb-3">Landlord&apos;s Digital Signature</h3>
                   <div className="p-4 border rounded-md bg-muted/20 dark:bg-muted/5 text-center">
-                    <img 
-                        src={invoice.landlordSignatureDataUrl} 
-                        alt="Landlord's Signature" 
-                        className="mx-auto max-w-xs h-auto border bg-white p-2 rounded shadow"
-                        data-signature-image
-                    />
+                    {invoice.landlordSignatureDataUrl ? (
+                        <img 
+                            src={invoice.landlordSignatureDataUrl} 
+                            alt="Landlord's Signature" 
+                            className="mx-auto max-w-xs h-auto border bg-white p-2 rounded shadow"
+                            data-signature-image
+                        />
+                    ) : (
+                        <p className="text-muted-foreground">Signature image not available.</p>
+                    )}
                     <p className="text-sm text-muted-foreground mt-2">
                       Signed by: {invoice.landlordName}
                     </p>
@@ -324,7 +432,7 @@ export default function InvoicePreviewPage() {
                       On: {formatDateSafely(invoice.signedByLandlordAt, true)}
                     </p>
                      <div className="mt-2 inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 rounded-full border border-green-300 dark:bg-green-700 dark:text-green-100 dark:border-green-500" data-verified-badge>
-                        <CheckCircle className="h-3 w-3"/> Digitally Signed by Landlord
+                        <CheckCircle className="h-3 w-3"/> Digitally Signed by Landlord ({maskMobileNumber(invoice.landlordMobileNumber)})
                     </div>
                   </div>
                 </div>
@@ -334,9 +442,11 @@ export default function InvoicePreviewPage() {
           </CardContent>
           <CardFooter className="p-6 border-t border-border bg-muted/30 dark:bg-muted/10 rounded-b-lg">
             <p className="text-xs text-muted-foreground">Thank you! Generated by QuickBill.</p>
+             {invoice.publicInvoiceId && <p className="ml-auto text-xs text-muted-foreground">ID: {invoice.publicInvoiceId}</p>}
           </CardFooter>
         </Card>
       </main>
     </div>
   );
 }
+
