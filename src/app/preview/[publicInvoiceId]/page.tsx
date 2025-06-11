@@ -183,7 +183,7 @@ export default function InvoicePreviewPage() {
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
             className="mb-8"
-            data-signature-request-ui {/* For print styles to hide this section */}
+            data-signature-request-ui 
         >
             {invoice.signatureStatus === 'awaiting_landlord_signature' && (
             <Card className="shadow-xl border-warning bg-yellow-50 dark:bg-yellow-900/30">
