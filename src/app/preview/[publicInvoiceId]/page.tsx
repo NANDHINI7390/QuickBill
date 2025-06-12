@@ -10,7 +10,7 @@ import Header from '@/components/header';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Printer, ArrowLeft, Share2, ShieldCheck, ShieldAlert, Copy, CheckCircle, Bell, Mail, MessageSquareText } from 'lucide-react'; // Added MessageSquareText
+import { Loader2, Printer, ArrowLeft, Share2, ShieldCheck, ShieldAlert, Copy, CheckCircle, Bell, Mail, MessageSquareText, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
@@ -43,6 +43,17 @@ const maskMobileNumber = (mobile?: string): string => {
     return `******${mobile.slice(-4)}`;
   }
   return 'Invalid Mobile';
+};
+
+const formatPropertyAddress = (invoice: StoredInvoice): string => {
+  if (!invoice) return 'N/A';
+  const parts = [
+    invoice.propertyPlotNo,
+    invoice.propertyStreet,
+    invoice.propertyArea,
+    invoice.propertyCity,
+  ].filter(Boolean); // Filter out any empty or null parts
+  return parts.join(', ') || 'Address not fully specified';
 };
 
 
@@ -103,16 +114,6 @@ export default function InvoicePreviewPage() {
 
   const handlePrint = () => {
     window.print();
-  };
-
-  const previewLink = baseUrl && publicInvoiceId ? `${baseUrl}/preview/${publicInvoiceId}` : '';
-
-  const copyToClipboard = (text: string, type: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      toast({ title: `${type} Copied!`, description: `The ${type.toLowerCase()} has been copied to your clipboard.` });
-    }).catch(err => {
-      toast({ variant: "destructive", title: "Copy Failed", description: "Could not copy to clipboard." });
-    });
   };
   
   const handleSaveNotificationPreferences = async () => {
@@ -180,10 +181,8 @@ export default function InvoicePreviewPage() {
   }
   
   const isCreator = user && invoice.userId === user.uid;
-  // Show this section if the current user is the creator, or if the invoice doesn't have a specific user ID (e.g., created anonymously)
-  // and the signature is pending.
   const showSignatureStatusSection = (isCreator || !invoice.userId) && invoice.signatureStatus === 'awaiting_landlord_signature';
-  const showTenantNotificationSection = (isCreator && invoice.signatureStatus === 'awaiting_landlord_signature');
+  const showTenantNotificationSection = (isCreator || !invoice.userId) && invoice.signatureStatus === 'awaiting_landlord_signature';
 
 
   return (
@@ -195,9 +194,15 @@ export default function InvoicePreviewPage() {
                 <ArrowLeft className="mr-2 h-4 w-4" /> {user ? "My Invoices" : "Back to Home"}
             </Button>
             <div className="flex gap-2">
-                <Button onClick={handlePrint} className="bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-300 ease-in-out">
-                    <Printer className="mr-2 h-4 w-4" /> Print / Download PDF
-                </Button>
+                 {invoice.signatureStatus === 'signed_by_landlord' && invoice.pdfStoragePath ? (
+                    <Button onClick={() => window.open(invoice.pdfStoragePath, '_blank')} className="bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors duration-300 ease-in-out">
+                        <Download className="mr-2 h-4 w-4" /> Download Signed PDF
+                    </Button>
+                ) : (
+                    <Button onClick={handlePrint} className="bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-300 ease-in-out">
+                        <Printer className="mr-2 h-4 w-4" /> Print / Download PDF
+                    </Button>
+                )}
             </div>
         </div>
 
@@ -227,6 +232,11 @@ export default function InvoicePreviewPage() {
                             A secure signing link has been (or will be shortly) sent via SMS/WhatsApp to the landlord&apos;s mobile number: <strong>{maskMobileNumber(invoice.landlordMobileNumber)}</strong>.
                         </p>
                     </div>
+                     {invoice.sentToMobileAt && (
+                        <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                            Link sent on: {formatDateSafely(invoice.sentToMobileAt, true)}
+                        </p>
+                    )}
                     <p className="text-xs text-yellow-600 dark:text-yellow-400">
                         The landlord needs to open this link to review and sign the invoice.
                         (Actual SMS/WhatsApp sending needs backend integration.)
@@ -248,12 +258,25 @@ export default function InvoicePreviewPage() {
                         <p className="text-xs text-green-600 dark:text-green-300">
                             Verification via Mobile: {maskMobileNumber(invoice.landlordMobileNumber)}
                         </p>
-                        {previewLink && (
+                        {baseUrl && publicInvoiceId && (
                             <div className="mt-3 p-3 bg-white inline-block rounded-md shadow border">
                                 <p className="text-xs text-center mb-1 text-muted-foreground">Scan QR for This Invoice</p>
-                               <QRCodeCanvas value={previewLink} size={100} bgColor="#ffffff" fgColor="#000000" level="L" />
+                               <QRCodeCanvas value={`${baseUrl}/preview/${publicInvoiceId}`} size={100} bgColor="#ffffff" fgColor="#000000" level="L" />
                             </div>
                         )}
+                    </CardContent>
+                </Card>
+            )}
+             {invoice.linkStatus && (invoice.linkStatus === 'used' || invoice.linkStatus === 'expired') && invoice.signatureStatus !== 'signed_by_landlord' && (
+                 <Card className="shadow-md border-destructive bg-red-50 dark:bg-red-900/30">
+                    <CardHeader>
+                        <CardTitle className="text-lg font-headline text-destructive flex items-center gap-2">
+                            <ShieldAlert className="h-5 w-5" /> Signing Link {invoice.linkStatus.charAt(0).toUpperCase() + invoice.linkStatus.slice(1)}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-destructive">The signing link for this invoice is no longer active.</p>
+                         {invoice.signingError && <p className="text-sm text-destructive mt-1">Details: {invoice.signingError}</p>}
                     </CardContent>
                 </Card>
             )}
@@ -343,7 +366,7 @@ export default function InvoicePreviewPage() {
               <div className="text-left sm:text-right mt-4 sm:mt-0">
                 <h2 className="text-lg font-semibold text-foreground">{invoice.landlordName}</h2>
                 <p className="text-sm text-muted-foreground">(Landlord)</p>
-                {invoice.propertyAddress && <p className="text-sm text-muted-foreground whitespace-pre-line mt-1">{invoice.propertyAddress}</p>}
+                <p className="text-sm text-muted-foreground whitespace-pre-line mt-1">{formatPropertyAddress(invoice)}</p>
               </div>
             </div>
           </CardHeader>
@@ -356,7 +379,7 @@ export default function InvoicePreviewPage() {
               </div>
                <div>
                 <h3 className="text-md font-semibold text-foreground mb-1">Property Address</h3>
-                <p className="text-sm text-muted-foreground whitespace-pre-line">{invoice.propertyAddress}</p>
+                <p className="text-sm text-muted-foreground whitespace-pre-line">{formatPropertyAddress(invoice)}</p>
               </div>
             </div>
             
@@ -426,4 +449,3 @@ export default function InvoicePreviewPage() {
     </div>
   );
 }
-

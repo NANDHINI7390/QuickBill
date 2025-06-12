@@ -6,8 +6,13 @@ import { v4 as uuidv4 } from 'uuid';
 const mobileRegex = /^[6-9]\d{9}$/; // Example for Indian mobile numbers
 
 export const rentInvoiceFormSchema = z.object({
+  // Property Address Fields
+  propertyPlotNo: z.string().min(1, "Plot number is required.").max(50, "Plot number too long."),
+  propertyStreet: z.string().min(1, "Street is required.").max(100, "Street too long."),
+  propertyArea: z.string().min(1, "Area/Locality is required.").max(100, "Area/Locality too long."),
+  propertyCity: z.string().min(1, "City is required.").max(100, "City too long."),
+
   // Fields from RentInvoiceDetails for the form
-  propertyAddress: z.string().min(5, "Property address is required.").max(200, "Property address too long."),
   rentAmount: z.coerce.number().positive("Rent amount must be a positive number."),
   rentPeriod: z.string().min(3, "Rent period is required, e.g., July 2024.").max(50, "Rent period too long."),
   tenantName: z.string().min(1, "Tenant name is required.").max(100, "Tenant name too long."),
@@ -35,6 +40,14 @@ export const rentInvoiceFormSchema = z.object({
   notifyTenant: z.boolean().optional(),
   tenantEmailForNotification: z.string().email("Invalid email address.").optional().or(z.literal('')),
 
+  // Fields for backend automation (placeholders for now)
+  sentToMobileAt: z.custom<any>().optional(),
+  otpVerifiedAt: z.custom<any>().optional(),
+  pdfStoragePath: z.string().optional(),
+  linkStatus: z.enum(['active', 'used', 'expired']).optional().default('active'),
+  signingError: z.string().optional(),
+  signerIpAddress: z.string().optional(),
+  signingUserAgent: z.string().optional(),
 
   createdAt: z.custom<any>().optional(), // Firestore Timestamp
   updatedAt: z.custom<any>().optional(), // Firestore Timestamp

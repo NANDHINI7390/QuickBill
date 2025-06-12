@@ -19,7 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { rentInvoiceFormSchema, type RentInvoiceFormValues } from '@/lib/schemas';
-import { Loader2, Send, FileText, Home, User, Users, Phone, CalendarDays, Banknote, Edit2 } from 'lucide-react';
+import { Loader2, Send, FileText, Home, User, Users, Phone, CalendarDays, Banknote, Edit2, MapPin } from 'lucide-react';
 
 function generatePublicInvoiceId(length = 8): string {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -50,8 +50,9 @@ export default function NewRentInvoicePage() {
     resolver: zodResolver(rentInvoiceFormSchema),
     mode: 'onChange',
     defaultValues: {
-      invoiceDate: new Date(), // Set default for the underlying data structure
+      invoiceDate: new Date(), 
       signatureStatus: 'awaiting_landlord_signature',
+      linkStatus: 'active',
     }
   });
 
@@ -61,8 +62,8 @@ export default function NewRentInvoicePage() {
     setIsSubmitting(true);
     
     const publicId = generatePublicInvoiceId();
-    const internalId = uuidv4(); // For user's subcollection if logged in
-    const signatureToken = uuidv4().replace(/-/g, '').substring(0, 12); // Generate a 12-char token
+    const internalId = uuidv4(); 
+    const signatureToken = uuidv4().replace(/-/g, '').substring(0, 12); 
 
     const invoiceData: RentInvoiceFormValues = {
       ...data,
@@ -70,9 +71,10 @@ export default function NewRentInvoicePage() {
       publicInvoiceId: publicId,
       userId: user?.uid || undefined,
       invoiceNumber: `RENT-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${publicId.slice(-4)}`,
-      invoiceDate: Timestamp.fromDate(new Date(data.invoiceDate || new Date())), // Ensure it's a Firestore Timestamp
+      invoiceDate: Timestamp.fromDate(new Date(data.invoiceDate || new Date())), 
       signatureToken: signatureToken,
       signatureStatus: 'awaiting_landlord_signature',
+      linkStatus: 'active',
       signatureRequestedAt: serverTimestamp() as any,
       createdAt: serverTimestamp() as any,
       updatedAt: serverTimestamp() as any,
@@ -93,7 +95,7 @@ export default function NewRentInvoicePage() {
 
       toast({ 
         title: "Rent Invoice Initiated!", 
-        description: `Signing link for landlord is ready. Invoice ID: ${publicId}`, 
+        description: `Signing link for landlord will be generated. Invoice ID: ${publicId}`, 
         className: "bg-primary text-primary-foreground" 
       });
       router.push(`/preview/${publicId}`);
@@ -132,7 +134,7 @@ export default function NewRentInvoicePage() {
                     <CardTitle className="font-headline text-2xl sm:text-3xl text-primary">Create Secure Rent Invoice</CardTitle>
                   </div>
                   <CardDescription className="text-muted-foreground">
-                    Fill in the details below. The invoice will be finalized once the landlord signs it via a secure link sent to their mobile.
+                    Fill in the details below. A secure signing link will be sent to the landlord's mobile.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 pt-6">
@@ -141,12 +143,32 @@ export default function NewRentInvoicePage() {
                     <h3 className="text-lg font-semibold text-primary mb-3 border-b pb-2 flex items-center gap-2">
                       <Home className="h-5 w-5" /> Property & Rent Details
                     </h3>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="propertyAddress">Property Address</Label>
-                      <Textarea id="propertyAddress" {...register('propertyAddress')} placeholder="e.g., 123 Main St, Anytown, USA" className={`focus:ring-primary focus:border-primary ${errors.propertyAddress ? 'border-destructive ring-destructive ring-1' : 'border-border'}`} rows={3}/>
-                      {errors.propertyAddress && <p className="text-xs text-destructive mt-1">{errors.propertyAddress.message}</p>}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="propertyPlotNo">Plot/House No.</Label>
+                        <Input id="propertyPlotNo" {...register('propertyPlotNo')} placeholder="e.g., A-101" className={`focus:ring-primary focus:border-primary ${errors.propertyPlotNo ? 'border-destructive ring-destructive ring-1' : 'border-border'}`} />
+                        {errors.propertyPlotNo && <p className="text-xs text-destructive mt-1">{errors.propertyPlotNo.message}</p>}
+                      </div>
+                       <div className="space-y-1.5">
+                        <Label htmlFor="propertyStreet">Street/Road Name</Label>
+                        <Input id="propertyStreet" {...register('propertyStreet')} placeholder="e.g., Main Street" className={`focus:ring-primary focus:border-primary ${errors.propertyStreet ? 'border-destructive ring-destructive ring-1' : 'border-border'}`} />
+                        {errors.propertyStreet && <p className="text-xs text-destructive mt-1">{errors.propertyStreet.message}</p>}
+                      </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="propertyArea">Area/Locality</Label>
+                        <Input id="propertyArea" {...register('propertyArea')} placeholder="e.g., Sunshine Colony" className={`focus:ring-primary focus:border-primary ${errors.propertyArea ? 'border-destructive ring-destructive ring-1' : 'border-border'}`} />
+                        {errors.propertyArea && <p className="text-xs text-destructive mt-1">{errors.propertyArea.message}</p>}
+                      </div>
+                       <div className="space-y-1.5">
+                        <Label htmlFor="propertyCity">City</Label>
+                        <Input id="propertyCity" {...register('propertyCity')} placeholder="e.g., Anytown" className={`focus:ring-primary focus:border-primary ${errors.propertyCity ? 'border-destructive ring-destructive ring-1' : 'border-border'}`} />
+                        {errors.propertyCity && <p className="text-xs text-destructive mt-1">{errors.propertyCity.message}</p>}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                       <div className="space-y-1.5">
                         <Label htmlFor="rentAmount">Rent Amount (₹)</Label>
                         <Input id="rentAmount" type="number" {...register('rentAmount')} placeholder="e.g., 15000" className={`focus:ring-primary focus:border-primary ${errors.rentAmount ? 'border-destructive ring-destructive ring-1' : 'border-border'}`} />

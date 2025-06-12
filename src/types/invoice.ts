@@ -2,8 +2,13 @@
 import type { Timestamp } from 'firebase/firestore';
 
 export interface RentInvoiceDetails {
-  // Fields for the rent invoice creation form
-  propertyAddress: string;
+  // Property Address Fields
+  propertyPlotNo: string;
+  propertyStreet: string;
+  propertyArea: string;
+  propertyCity: string;
+  
+  // Other rent invoice fields
   rentAmount: number;
   rentPeriod: string; // e.g., "July 2024"
   tenantName: string;
@@ -32,15 +37,22 @@ export interface InvoiceFormValues extends RentInvoiceDetails {
   // Tenant Notification Preferences
   notifyTenant?: boolean;
   tenantEmailForNotification?: string;
-  // tenantWhatsAppForNotification?: string; // Future enhancement
-  // tenantSmsForNotification?: string; // Future enhancement
+
+  // Optional notes
+  invoiceNotes?: string;
+
+  // Fields for backend automation
+  sentToMobileAt?: Timestamp;
+  otpVerifiedAt?: Timestamp;
+  pdfStoragePath?: string;
+  linkStatus?: 'active' | 'used' | 'expired';
+  signingError?: string;
+  signerIpAddress?: string;
+  signingUserAgent?: string;
 
   // Timestamps
   createdAt: Timestamp;
   updatedAt: Timestamp;
-
-  // Optional notes
-  invoiceNotes?: string;
 }
 
 export type StoredInvoice = InvoiceFormValues;
